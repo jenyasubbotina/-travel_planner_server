@@ -1,45 +1,210 @@
-# ktor-sample
+# Travel Planner Server
 
-This project was created using the [Ktor Project Generator](https://start.ktor.io).
+A collaborative travel planning backend built with Kotlin and Ktor. Travel Planner enables groups of users to co-create trips, manage shared itineraries, track and split expenses, and stay synchronized across devices with offline-first capabilities and push notifications.
 
-Here are some useful links to get you started:
+## Tech Stack
 
-- [Ktor Documentation](https://ktor.io/docs/home.html)
-- [Ktor GitHub page](https://github.com/ktorio/ktor)
-- The [Ktor Slack chat](https://app.slack.com/client/T09229ZC6/C0A974TJ9). You'll need to [request an invite](https://surveys.jetbrains.com/s3/kotlin-slack-sign-up) to join.
+| Component             | Technology                                |
+|-----------------------|-------------------------------------------|
+| Language              | Kotlin 2.3                                |
+| Framework             | Ktor 3.4 (Netty engine)                   |
+| Database              | PostgreSQL 16                             |
+| ORM                   | Exposed 0.61                              |
+| Migrations            | Flyway 10.15                              |
+| Dependency Injection  | Koin 4.1                                  |
+| Authentication        | JWT (HMAC-SHA256) via ktor-auth-jwt       |
+| Caching               | Redis 7 (Lettuce client)                  |
+| Object Storage        | S3-compatible (AWS SDK Kotlin / MinIO)    |
+| Push Notifications    | Firebase Cloud Messaging (FCM)            |
+| Serialization         | kotlinx.serialization (JSON)              |
+| Connection Pooling    | HikariCP 5.1                              |
+| Testing               | JUnit 5, MockK, Testcontainers            |
 
-## Features
+## Prerequisites
 
-Here's a list of features included in this project:
+- **JDK 21** (Eclipse Temurin recommended)
+- **Docker** and **Docker Compose** (for infrastructure services)
+- **Gradle 8.8+** (included via Gradle Wrapper)
 
-| Name                                                                   | Description                                                                        |
-| ------------------------------------------------------------------------|------------------------------------------------------------------------------------ |
-| [Routing](https://start.ktor.io/p/routing)                             | Provides a structured routing DSL                                                  |
-| [Server-Sent Events (SSE)](https://start.ktor.io/p/sse)                | Support for server push events                                                     |
-| [Content Negotiation](https://start.ktor.io/p/content-negotiation)     | Provides automatic content conversion according to Content-Type and Accept headers |
-| [kotlinx.serialization](https://start.ktor.io/p/kotlinx-serialization) | Handles JSON serialization using kotlinx.serialization library                     |
-| [Koin](https://start.ktor.io/p/koin)                                   | Provides dependency injection                                                      |
-| [WebSockets](https://start.ktor.io/p/ktor-websockets)                  | Adds WebSocket protocol support for bidirectional client connections               |
-| [CORS](https://start.ktor.io/p/cors)                                   | Enables Cross-Origin Resource Sharing (CORS)                                       |
+## Quick Start
 
-## Building & Running
+### Option 1: Docker Compose (recommended)
 
-To build or run the project, use one of the following tasks:
+Start everything -- the application server, PostgreSQL, Redis, and MinIO -- with a single command:
 
-| Task                                    | Description                                                          |
-| -----------------------------------------|---------------------------------------------------------------------- |
-| `./gradlew test`                        | Run the tests                                                        |
-| `./gradlew build`                       | Build everything                                                     |
-| `./gradlew buildFatJar`                 | Build an executable JAR of the server with all dependencies included |
-| `./gradlew buildImage`                  | Build the docker image to use with the fat JAR                       |
-| `./gradlew publishImageToLocalRegistry` | Publish the docker image locally                                     |
-| `./gradlew run`                         | Run the server                                                       |
-| `./gradlew runDocker`                   | Run using the local docker image                                     |
-
-If the server starts successfully, you'll see the following output:
-
-```
-2024-12-04 14:32:45.584 [main] INFO  Application - Application started in 0.303 seconds.
-2024-12-04 14:32:45.682 [main] INFO  Application - Responding at http://0.0.0.0:8080
+```bash
+docker-compose up --build
 ```
 
+The server will be available at `http://localhost:8080`.
+
+### Option 2: Local Development
+
+1. **Start infrastructure services only:**
+
+   ```bash
+   docker-compose up postgres redis minio
+   ```
+
+2. **Run the application:**
+
+   ```bash
+   ./gradlew run
+   ```
+
+   The server starts on `http://localhost:8080`.
+
+### Verify the server is running
+
+```bash
+curl http://localhost:8080/health/live
+```
+
+Expected response:
+
+```json
+{
+  "status": "UP",
+  "timestamp": "2025-01-15T10:30:00Z"
+}
+```
+
+## Running Migrations
+
+Flyway migrations run **automatically** on application startup. Migration files are located in:
+
+```
+src/main/resources/db/migration/
+```
+
+Current migrations:
+
+| Version | Description                   |
+|---------|-------------------------------|
+| V1      | Initial schema (users, trips, participants, invitations, auth tokens, devices) |
+| V2      | Add itinerary points          |
+| V3      | Add expenses and splits       |
+| V4      | Add attachments               |
+| V5      | Add sync and idempotency keys |
+| V6      | Add domain events (outbox)    |
+
+To run migrations independently (without starting the app), connect to the database and use the Flyway CLI, or simply start the application -- it will apply any pending migrations before accepting requests.
+
+## Running Tests
+
+```bash
+# Run all tests
+./gradlew test
+
+# Run with verbose output
+./gradlew test --info
+```
+
+Tests use **JUnit 5** with **MockK** for mocking and **Testcontainers** for integration tests against real PostgreSQL instances. See [docs/TESTING.md](docs/TESTING.md) for the full testing strategy.
+
+## API Overview
+
+All API endpoints are served under the `/api/v1` prefix (except health checks). Authentication uses JWT Bearer tokens.
+
+| Group          | Base Path                                        | Description                            |
+|----------------|--------------------------------------------------|----------------------------------------|
+| Health         | `/health`                                        | Liveness and readiness probes          |
+| Auth           | `/api/v1/auth`                                   | Register, login, refresh, logout       |
+| Users          | `/api/v1/me`                                     | Profile and device management          |
+| Trips          | `/api/v1/trips`                                  | CRUD for trips                         |
+| Participants   | `/api/v1/trips/{tripId}/participants`             | Invite, remove, change roles           |
+| Itinerary      | `/api/v1/trips/{tripId}/itinerary`                | Itinerary points with reordering       |
+| Expenses       | `/api/v1/trips/{tripId}/expenses`                 | Expense tracking with flexible splits  |
+| Analytics      | `/api/v1/trips/{tripId}/balances|settlements|statistics` | Balances, settlements, spending stats |
+| Attachments    | `/api/v1/attachments`, `/api/v1/trips/{tripId}/attachments` | File uploads via presigned S3 URLs |
+| Sync           | `/api/v1/trips/{tripId}/snapshot|sync`            | Offline-first sync (snapshot + delta)  |
+
+For the complete API reference, see **[docs/API.md](docs/API.md)**.
+
+## Project Structure
+
+```
+src/main/kotlin/com/travelplanner/
+|-- Application.kt                  # Ktor entry point and module configuration
+|-- api/
+|   |-- dto/
+|   |   |-- ErrorResponse.kt        # Unified error envelope
+|   |   |-- request/Requests.kt     # All request DTOs
+|   |   |-- response/Responses.kt   # All response DTOs
+|   |-- middleware/
+|   |   |-- AuthMiddleware.kt       # JWT principal extraction
+|   |   |-- TripAccessMiddleware.kt # Trip participant/role checks
+|   |-- plugins/                    # Ktor plugin configuration
+|   |   |-- Authentication.kt
+|   |   |-- CORSConfig.kt
+|   |   |-- CallLogging.kt
+|   |   |-- ContentNegotiation.kt
+|   |   |-- StatusPages.kt         # DomainException -> HTTP status mapping
+|   |-- routes/                     # Route definitions (one file per domain)
+|-- application/
+|   |-- service/                    # Cross-cutting services (cache, notifications)
+|   |-- usecase/                    # Application use cases grouped by domain
+|       |-- analytics/
+|       |-- attachment/
+|       |-- auth/
+|       |-- expense/
+|       |-- itinerary/
+|       |-- participant/
+|       |-- sync/
+|       |-- trip/
+|       |-- user/
+|-- domain/
+|   |-- exception/DomainException.kt  # Sealed hierarchy of domain errors
+|   |-- model/                        # Pure domain models (no framework deps)
+|   |-- repository/                   # Repository interfaces (ports)
+|   |-- validation/                   # Domain validation logic
+|-- infrastructure/
+    |-- auth/                         # JWT and password hashing
+    |-- config/                       # Typed configuration classes
+    |-- di/AppModule.kt               # Koin dependency wiring
+    |-- fcm/                          # Firebase Cloud Messaging + outbox
+    |-- persistence/
+    |   |-- DatabaseFactory.kt        # HikariCP + Flyway setup
+    |   |-- repository/               # Exposed repository implementations
+    |   |-- tables/                   # Exposed table definitions
+    |-- redis/                        # Redis cache integration
+    |-- s3/                           # S3 presigned URL generation
+```
+
+For a detailed architecture walkthrough, see **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
+
+## Environment Variables
+
+| Variable                          | Description                              | Default                                         |
+|-----------------------------------|------------------------------------------|-------------------------------------------------|
+| `SERVER_PORT`                     | HTTP server port                         | `8080`                                          |
+| `SERVER_HOST`                     | HTTP server bind address                 | `0.0.0.0`                                       |
+| `DATABASE_URL`                    | PostgreSQL JDBC URL                      | `jdbc:postgresql://localhost:5432/travel_planner`|
+| `DATABASE_USER`                   | Database username                        | `tp_user`                                       |
+| `DATABASE_PASSWORD`               | Database password                        | `tp_pass`                                       |
+| `JWT_SECRET`                      | HMAC-SHA256 secret (min 32 chars)        | *(development default, change in production)*   |
+| `JWT_ISSUER`                      | JWT issuer claim                         | `travel-planner`                                |
+| `JWT_AUDIENCE`                    | JWT audience claim                       | `travel-planner-client`                         |
+| `JWT_ACCESS_TOKEN_EXPIRY_MINUTES` | Access token TTL in minutes              | `30`                                            |
+| `JWT_REFRESH_TOKEN_EXPIRY_DAYS`   | Refresh token TTL in days                | `30`                                            |
+| `REDIS_HOST`                      | Redis hostname                           | `localhost`                                     |
+| `REDIS_PORT`                      | Redis port                               | `6379`                                          |
+| `S3_ENDPOINT`                     | S3-compatible endpoint URL               | `http://localhost:9000`                         |
+| `S3_ACCESS_KEY`                   | S3 access key                            | `minioadmin`                                    |
+| `S3_SECRET_KEY`                   | S3 secret key                            | `minioadmin`                                    |
+| `S3_BUCKET`                       | S3 bucket name                           | `travel-planner`                                |
+| `S3_REGION`                       | S3 region                                | `us-east-1`                                     |
+| `FCM_SERVICE_ACCOUNT_PATH`        | Path to Firebase service account JSON    | *(empty -- disables push notifications)*        |
+
+## Further Documentation
+
+- [Architecture](docs/ARCHITECTURE.md) -- Clean Architecture layers, design decisions, data flow
+- [API Reference](docs/API.md) -- Complete REST endpoint documentation
+- [Database Schema](docs/DB_SCHEMA.md) -- Tables, columns, relationships, indexes
+- [Sync Protocol](docs/SYNC_PROTOCOL.md) -- Offline-first synchronization design
+- [Notifications](docs/NOTIFICATIONS.md) -- Push notification architecture and outbox pattern
+- [Testing](docs/TESTING.md) -- Testing strategy, tooling, and coverage goals
+
+## License
+
+Proprietary. All rights reserved.
