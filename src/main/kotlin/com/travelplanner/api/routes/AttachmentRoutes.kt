@@ -1,0 +1,119 @@
+package com.travelplanner.api.routes
+
+import com.travelplanner.api.dto.request.CreateAttachmentRequest
+import com.travelplanner.api.dto.request.PresignUploadRequest
+import com.travelplanner.api.dto.response.AttachmentResponse
+import com.travelplanner.api.dto.response.PresignedUploadResponse
+import com.travelplanner.api.middleware.currentUserId
+import com.travelplanner.api.middleware.tripIdParam
+import com.travelplanner.api.middleware.uuidParam
+import com.travelplanner.application.usecase.attachment.CreateAttachmentUseCase
+import com.travelplanner.application.usecase.attachment.DeleteAttachmentUseCase
+import com.travelplanner.application.usecase.attachment.RequestPresignedUploadUseCase
+import com.travelplanner.domain.model.Attachment
+import io.ktor.http.HttpStatusCode
+import io.ktor.server.auth.authenticate
+import io.ktor.server.request.receive
+import io.ktor.server.response.respond
+import io.ktor.server.routing.Route
+import io.ktor.server.routing.delete
+import io.ktor.server.routing.post
+import io.ktor.server.routing.route
+import org.koin.ktor.ext.inject
+import java.util.UUID
+
+fun Route.attachmentRoutes() {
+    val requestPresignedUploadUseCase by inject<RequestPresignedUploadUseCase>()
+    val createAttachmentUseCase by inject<CreateAttachmentUseCase>()
+    val deleteAttachmentUseCase by inject<DeleteAttachmentUseCase>()
+
+    authenticate("auth-jwt") {
+        route("/api/v1/attachments") {
+            post("/presign") {
+                val userId = currentUserId()
+                val req = call.receive<PresignUploadRequest>()
+                val result = requestPresignedUploadUseCase.execute(
+                    RequestPresignedUploadUseCase.Input(
+                        tripId = UUID.fromString(req.tripId),
+                        userId = userId,
+                        fileName = req.fileName,
+                        contentType = req.contentType,
+                        fileSize = req.fileSize
+                    )
+                )
+                call.respond(
+                    HttpStatusCode.OK,
+                    PresignedUploadResponse(
+                        uploadUrl = result.presignedUrl,
+                        s3Key = result.s3Key
+                    )
+                )
+            }
+
+            delete("/{attachmentId}") {
+                val userId = currentUserId()
+                val attachmentId = uuidParam("attachmentId")
+                deleteAttachmentUseCase.execute(
+                    DeleteAttachmentUseCase.Input(
+                        attachmentId = attachmentId,
+                        userId = userId
+                    )
+                )
+                call.respond(HttpStatusCode.NoContent)
+            }
+        }
+
+        route("/api/v1/trips/{tripId}/attachments") {
+            post {
+                val tripId = tripIdParam()
+                val userId = currentUserId()
+                val req = call.receive<CreateAttachmentRequest>()
+                val attachment = createAttachmentUseCase.execute(
+                    CreateAttachmentUseCase.Input(
+                        tripId = tripId,
+                        userId = userId,
+                        expenseId = null,
+                        fileName = req.fileName,
+                        fileSize = req.fileSize,
+                        mimeType = req.mimeType,
+                        s3Key = req.s3Key
+                    )
+                )
+                call.respond(HttpStatusCode.Created, attachment.toResponse())
+            }
+        }
+
+        route("/api/v1/trips/{tripId}/expenses/{expenseId}/attachments") {
+            post {
+                val tripId = tripIdParam()
+                val userId = currentUserId()
+                val expenseId = uuidParam("expenseId")
+                val req = call.receive<CreateAttachmentRequest>()
+                val attachment = createAttachmentUseCase.execute(
+                    CreateAttachmentUseCase.Input(
+                        tripId = tripId,
+                        userId = userId,
+                        expenseId = expenseId,
+                        fileName = req.fileName,
+                        fileSize = req.fileSize,
+                        mimeType = req.mimeType,
+                        s3Key = req.s3Key
+                    )
+                )
+                call.respond(HttpStatusCode.Created, attachment.toResponse())
+            }
+        }
+    }
+}
+
+private fun Attachment.toResponse() = AttachmentResponse(
+    id = id.toString(),
+    tripId = tripId.toString(),
+    expenseId = expenseId?.toString(),
+    uploadedBy = uploadedBy.toString(),
+    fileName = fileName,
+    fileSize = fileSize,
+    mimeType = mimeType,
+    s3Key = s3Key,
+    createdAt = createdAt.toString()
+)

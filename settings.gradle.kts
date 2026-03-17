@@ -1,7 +1,8 @@
-rootProject.name = "ktor-sample"
+rootProject.name = "travel-planner-server"
 
 dependencyResolutionManagement {
     repositories {
         mavenCentral()
+        google()
     }
 }
