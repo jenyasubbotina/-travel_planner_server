@@ -2,6 +2,7 @@ package com.travelplanner.api.plugins
 
 import com.travelplanner.api.dto.ErrorResponse
 import com.travelplanner.domain.exception.DomainException
+import io.ktor.serialization.JsonConvertException
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
@@ -83,6 +84,16 @@ fun Application.configureStatusPages() {
                     HttpStatusCode.UnprocessableEntity to ErrorResponse(cause.code, cause.message)
             }
             call.respond(status, response)
+        }
+
+        exception<JsonConvertException> { call, cause ->
+            call.respond(
+                HttpStatusCode.BadRequest,
+                ErrorResponse(
+                    code = "INVALID_REQUEST_BODY",
+                    message = cause.message ?: "Invalid request body"
+                )
+            )
         }
 
         exception<Throwable> { call, cause ->

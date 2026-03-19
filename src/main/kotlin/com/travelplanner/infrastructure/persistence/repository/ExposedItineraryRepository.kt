@@ -7,7 +7,6 @@ import com.travelplanner.infrastructure.persistence.tables.ItineraryPointsTable
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import java.time.Instant
-import java.time.LocalTime
 import java.util.UUID
 
 class ExposedItineraryRepository : ItineraryRepository {
@@ -40,8 +39,8 @@ class ExposedItineraryRepository : ItineraryRepository {
             it[description] = point.description
             it[type] = point.type
             it[date] = point.date
-            it[startTime] = point.startTime?.toString()
-            it[endTime] = point.endTime?.toString()
+            it[startTime] = point.startTime
+            it[endTime] = point.endTime
             it[latitude] = point.latitude
             it[longitude] = point.longitude
             it[address] = point.address
@@ -63,8 +62,8 @@ class ExposedItineraryRepository : ItineraryRepository {
             it[description] = point.description
             it[type] = point.type
             it[date] = point.date
-            it[startTime] = point.startTime?.toString()
-            it[endTime] = point.endTime?.toString()
+            it[startTime] = point.startTime
+            it[endTime] = point.endTime
             it[latitude] = point.latitude
             it[longitude] = point.longitude
             it[address] = point.address
@@ -111,8 +110,8 @@ class ExposedItineraryRepository : ItineraryRepository {
         description = this[ItineraryPointsTable.description],
         type = this[ItineraryPointsTable.type],
         date = this[ItineraryPointsTable.date],
-        startTime = this[ItineraryPointsTable.startTime]?.let { LocalTime.parse(it) },
-        endTime = this[ItineraryPointsTable.endTime]?.let { LocalTime.parse(it) },
+        startTime = this[ItineraryPointsTable.startTime],
+        endTime = this[ItineraryPointsTable.endTime],
         latitude = this[ItineraryPointsTable.latitude],
         longitude = this[ItineraryPointsTable.longitude],
         address = this[ItineraryPointsTable.address],

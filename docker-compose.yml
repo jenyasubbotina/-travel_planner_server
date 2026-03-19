@@ -10,7 +10,6 @@ services:
         condition: service_healthy
       minio:
         condition: service_started
-    env_file: .env
     environment:
       - DATABASE_URL=jdbc:postgresql://postgres:5432/travel_planner
       - DATABASE_USER=tp_user
@@ -30,7 +29,7 @@ services:
       POSTGRES_USER: tp_user
       POSTGRES_PASSWORD: tp_pass
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:

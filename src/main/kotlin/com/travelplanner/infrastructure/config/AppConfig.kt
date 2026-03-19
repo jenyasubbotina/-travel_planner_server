@@ -13,32 +13,44 @@ data class AppConfig(
         fun load(config: ApplicationConfig): AppConfig {
             return AppConfig(
                 database = DatabaseConfig(
-                    url = config.property("database.url").getString(),
-                    user = config.property("database.user").getString(),
-                    password = config.property("database.password").getString(),
+                    url = config.propertyOrNull("database.url")?.getString()
+                        ?: "jdbc:postgresql://localhost:5433/travel_planner",
+                    user = config.propertyOrNull("database.user")?.getString()
+                        ?: "tp_user",
+                    password = config.propertyOrNull("database.password")?.getString()
+                        ?: "tp_pass",
                     maxPoolSize = config.propertyOrNull("database.maxPoolSize")
                         ?.getString()?.toIntOrNull() ?: 10
                 ),
                 jwt = JwtConfig(
-                    secret = config.property("jwt.secret").getString(),
-                    issuer = config.property("jwt.issuer").getString(),
-                    audience = config.property("jwt.audience").getString(),
+                    secret = config.propertyOrNull("jwt.secret")?.getString()
+                        ?: "change-me-to-a-secure-random-string-at-least-32-chars",
+                    issuer = config.propertyOrNull("jwt.issuer")?.getString()
+                        ?: "travel-planner",
+                    audience = config.propertyOrNull("jwt.audience")?.getString()
+                        ?: "travel-planner-client",
                     accessTokenExpiryMinutes = config.propertyOrNull("jwt.accessTokenExpiryMinutes")
                         ?.getString()?.toLongOrNull() ?: 30L,
                     refreshTokenExpiryDays = config.propertyOrNull("jwt.refreshTokenExpiryDays")
                         ?.getString()?.toLongOrNull() ?: 30L
                 ),
                 redis = RedisConfig(
-                    host = config.property("redis.host").getString(),
+                    host = config.propertyOrNull("redis.host")?.getString()
+                        ?: "localhost",
                     port = config.propertyOrNull("redis.port")
                         ?.getString()?.toIntOrNull() ?: 6379
                 ),
                 s3 = S3Config(
-                    endpoint = config.property("s3.endpoint").getString(),
-                    accessKey = config.property("s3.accessKey").getString(),
-                    secretKey = config.property("s3.secretKey").getString(),
-                    bucket = config.property("s3.bucket").getString(),
-                    region = config.property("s3.region").getString()
+                    endpoint = config.propertyOrNull("s3.endpoint")?.getString()
+                        ?: "http://localhost:9000",
+                    accessKey = config.propertyOrNull("s3.accessKey")?.getString()
+                        ?: "minioadmin",
+                    secretKey = config.propertyOrNull("s3.secretKey")?.getString()
+                        ?: "minioadmin",
+                    bucket = config.propertyOrNull("s3.bucket")?.getString()
+                        ?: "travel-planner",
+                    region = config.propertyOrNull("s3.region")?.getString()
+                        ?: "us-east-1"
                 ),
                 fcm = FcmConfig(
                     serviceAccountPath = config.propertyOrNull("fcm.serviceAccountPath")

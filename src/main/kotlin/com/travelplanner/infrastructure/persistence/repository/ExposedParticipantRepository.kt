@@ -1,15 +1,19 @@
 package com.travelplanner.infrastructure.persistence.repository
 
+import com.travelplanner.domain.exception.DomainException
 import com.travelplanner.domain.model.InvitationStatus
 import com.travelplanner.domain.model.TripInvitation
 import com.travelplanner.domain.model.TripParticipant
 import com.travelplanner.domain.model.TripRole
+import com.travelplanner.domain.model.User
 import com.travelplanner.domain.repository.ParticipantRepository
 import com.travelplanner.infrastructure.persistence.DatabaseFactory.dbQuery
 import com.travelplanner.infrastructure.persistence.tables.TripInvitationsTable
 import com.travelplanner.infrastructure.persistence.tables.TripParticipantsTable
+import org.jetbrains.exposed.exceptions.ExposedSQLException
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import java.time.Instant
 import java.util.UUID
 
 class ExposedParticipantRepository : ParticipantRepository {
@@ -127,6 +131,62 @@ class ExposedParticipantRepository : ParticipantRepository {
             it[resolvedAt] = invitation.resolvedAt
         }
         invitation
+    }
+
+    override suspend fun acceptInvitation(invitationId: UUID, user: User): TripParticipant = dbQuery {
+        val invitation = TripInvitationsTable.selectAll()
+            .where { TripInvitationsTable.id eq invitationId }
+            .singleOrNull()
+            ?.toTripInvitation()
+            ?: throw DomainException.InvitationNotFound(invitationId)
+
+        if (invitation.status != InvitationStatus.PENDING) {
+            throw DomainException.InvitationAlreadyResolved(invitationId)
+        }
+
+        if (!user.email.equals(invitation.email, ignoreCase = true)) {
+            throw DomainException.AccessDenied("This invitation was sent to a different email address")
+        }
+
+        val existingParticipant = TripParticipantsTable.selectAll()
+            .where {
+                (TripParticipantsTable.tripId eq invitation.tripId) and
+                    (TripParticipantsTable.userId eq user.id)
+            }
+            .singleOrNull()
+
+        if (existingParticipant != null) {
+            throw DomainException.AlreadyParticipant(user.id, invitation.tripId)
+        }
+
+        val now = Instant.now()
+        val participant = TripParticipant(
+            tripId = invitation.tripId,
+            userId = user.id,
+            role = invitation.role,
+            joinedAt = now
+        )
+
+        TripInvitationsTable.update({ TripInvitationsTable.id eq invitation.id }) {
+            it[status] = InvitationStatus.ACCEPTED.name
+            it[resolvedAt] = now
+        }
+
+        try {
+            TripParticipantsTable.insert {
+                it[tripId] = participant.tripId
+                it[userId] = participant.userId
+                it[role] = participant.role.name
+                it[joinedAt] = participant.joinedAt
+            }
+        } catch (cause: ExposedSQLException) {
+            if (cause.sqlState == "23505") {
+                throw DomainException.AlreadyParticipant(user.id, invitation.tripId)
+            }
+            throw cause
+        }
+
+        participant
     }
 
     // --- Mapping helpers ---

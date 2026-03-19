@@ -3,6 +3,7 @@ package com.travelplanner.domain.repository
 import com.travelplanner.domain.model.TripInvitation
 import com.travelplanner.domain.model.TripParticipant
 import com.travelplanner.domain.model.TripRole
+import com.travelplanner.domain.model.User
 import java.util.UUID
 
 interface ParticipantRepository {
@@ -21,4 +22,5 @@ interface ParticipantRepository {
     suspend fun findPendingInvitationsByTrip(tripId: UUID): List<TripInvitation>
     suspend fun findPendingInvitationsByEmail(email: String): List<TripInvitation>
     suspend fun updateInvitation(invitation: TripInvitation): TripInvitation
+    suspend fun acceptInvitation(invitationId: UUID, user: User): TripParticipant
 }

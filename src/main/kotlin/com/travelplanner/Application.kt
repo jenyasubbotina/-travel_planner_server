@@ -10,6 +10,7 @@ import com.travelplanner.infrastructure.di.appModule
 import io.ktor.server.application.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
+import io.ktor.server.plugins.swagger.*
 import io.ktor.server.routing.*
 import kotlinx.coroutines.launch
 import org.koin.dsl.module
@@ -52,6 +53,7 @@ fun Application.module() {
     launch { outboxProcessor.start(this) }
 
     routing {
+        swaggerUI(path = "swagger", swaggerFile = "openapi/documentation.yaml")
         healthRoutes()
         authRoutes()
         userRoutes()

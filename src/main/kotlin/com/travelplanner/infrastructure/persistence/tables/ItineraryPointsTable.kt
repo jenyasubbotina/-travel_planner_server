@@ -3,6 +3,7 @@ package com.travelplanner.infrastructure.persistence.tables
 import org.jetbrains.exposed.sql.ReferenceOption
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.javatime.date
+import org.jetbrains.exposed.sql.javatime.time
 import org.jetbrains.exposed.sql.javatime.timestamp
 
 object ItineraryPointsTable : Table("itinerary_points") {
@@ -12,8 +13,8 @@ object ItineraryPointsTable : Table("itinerary_points") {
     val description = text("description").nullable()
     val type = varchar("type", 50).nullable()
     val date = date("date").nullable()
-    val startTime = varchar("start_time", 8).nullable()
-    val endTime = varchar("end_time", 8).nullable()
+    val startTime = time("start_time").nullable()
+    val endTime = time("end_time").nullable()
     val latitude = double("latitude").nullable()
     val longitude = double("longitude").nullable()
     val address = varchar("address", 500).nullable()

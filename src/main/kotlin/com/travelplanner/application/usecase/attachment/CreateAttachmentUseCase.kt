@@ -3,13 +3,15 @@ package com.travelplanner.application.usecase.attachment
 import com.travelplanner.domain.exception.DomainException
 import com.travelplanner.domain.model.Attachment
 import com.travelplanner.domain.repository.AttachmentRepository
+import com.travelplanner.domain.repository.ExpenseRepository
 import com.travelplanner.domain.repository.ParticipantRepository
 import java.time.Instant
 import java.util.UUID
 
 class CreateAttachmentUseCase(
     private val participantRepository: ParticipantRepository,
-    private val attachmentRepository: AttachmentRepository
+    private val attachmentRepository: AttachmentRepository,
+    private val expenseRepository: ExpenseRepository
 ) {
 
     data class Input(
@@ -33,6 +35,15 @@ class CreateAttachmentUseCase(
 
         if (input.s3Key.isBlank()) {
             throw DomainException.ValidationError("S3 key is required")
+        }
+
+        if (input.expenseId != null) {
+            val expense = expenseRepository.findById(input.expenseId)
+                ?: throw DomainException.ExpenseNotFound(input.expenseId)
+
+            if (expense.deletedAt != null || expense.tripId != input.tripId) {
+                throw DomainException.ExpenseNotFound(input.expenseId)
+            }
         }
 
         val attachment = Attachment(

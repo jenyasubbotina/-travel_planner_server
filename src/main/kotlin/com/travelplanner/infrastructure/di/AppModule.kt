@@ -161,7 +161,7 @@ val appModule = module {
     // Use Cases — Attachment
     // ──────────────────────────────────────────────
     single { RequestPresignedUploadUseCase(get(), get()) }
-    single { CreateAttachmentUseCase(get(), get()) }
+    single { CreateAttachmentUseCase(get(), get(), get()) }
     single { DeleteAttachmentUseCase(get(), get()) }
 
     // ──────────────────────────────────────────────

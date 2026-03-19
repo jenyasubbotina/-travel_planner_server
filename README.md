@@ -179,7 +179,7 @@ For a detailed architecture walkthrough, see **[docs/ARCHITECTURE.md](docs/ARCHI
 |-----------------------------------|------------------------------------------|-------------------------------------------------|
 | `SERVER_PORT`                     | HTTP server port                         | `8080`                                          |
 | `SERVER_HOST`                     | HTTP server bind address                 | `0.0.0.0`                                       |
-| `DATABASE_URL`                    | PostgreSQL JDBC URL                      | `jdbc:postgresql://localhost:5432/travel_planner`|
+| `DATABASE_URL`                    | PostgreSQL JDBC URL                      | `jdbc:postgresql://localhost:5433/travel_planner`|
 | `DATABASE_USER`                   | Database username                        | `tp_user`                                       |
 | `DATABASE_PASSWORD`               | Database password                        | `tp_pass`                                       |
 | `JWT_SECRET`                      | HMAC-SHA256 secret (min 32 chars)        | *(development default, change in production)*   |
