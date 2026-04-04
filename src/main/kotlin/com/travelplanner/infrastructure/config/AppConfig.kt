@@ -13,50 +13,63 @@ data class AppConfig(
         fun load(config: ApplicationConfig): AppConfig {
             return AppConfig(
                 database = DatabaseConfig(
-                    url = config.propertyOrNull("database.url")?.getString()
+                    url = envOrConfig(config, "DATABASE_URL", "database.url")
                         ?: "jdbc:postgresql://localhost:5433/travel_planner",
-                    user = config.propertyOrNull("database.user")?.getString()
-                        ?: "tp_user",
-                    password = config.propertyOrNull("database.password")?.getString()
+                    user = envOrConfig(config, "DATABASE_USER", "database.user") ?: "tp_user",
+                    password = envOrConfig(config, "DATABASE_PASSWORD", "database.password")
                         ?: "tp_pass",
-                    maxPoolSize = config.propertyOrNull("database.maxPoolSize")
-                        ?.getString()?.toIntOrNull() ?: 10
+                    maxPoolSize = envIntOrConfig(config, "DATABASE_MAX_POOL_SIZE", "database.maxPoolSize")
+                        ?: 10
                 ),
                 jwt = JwtConfig(
-                    secret = config.propertyOrNull("jwt.secret")?.getString()
+                    secret = envOrConfig(config, "JWT_SECRET", "jwt.secret")
                         ?: "change-me-to-a-secure-random-string-at-least-32-chars",
-                    issuer = config.propertyOrNull("jwt.issuer")?.getString()
-                        ?: "travel-planner",
-                    audience = config.propertyOrNull("jwt.audience")?.getString()
+                    issuer = envOrConfig(config, "JWT_ISSUER", "jwt.issuer") ?: "travel-planner",
+                    audience = envOrConfig(config, "JWT_AUDIENCE", "jwt.audience")
                         ?: "travel-planner-client",
-                    accessTokenExpiryMinutes = config.propertyOrNull("jwt.accessTokenExpiryMinutes")
-                        ?.getString()?.toLongOrNull() ?: 30L,
-                    refreshTokenExpiryDays = config.propertyOrNull("jwt.refreshTokenExpiryDays")
-                        ?.getString()?.toLongOrNull() ?: 30L
+                    accessTokenExpiryMinutes = envLongOrConfig(
+                        config,
+                        "JWT_ACCESS_TOKEN_EXPIRY_MINUTES",
+                        "jwt.accessTokenExpiryMinutes"
+                    ) ?: 30L,
+                    refreshTokenExpiryDays = envLongOrConfig(
+                        config,
+                        "JWT_REFRESH_TOKEN_EXPIRY_DAYS",
+                        "jwt.refreshTokenExpiryDays"
+                    ) ?: 30L
                 ),
                 redis = RedisConfig(
-                    host = config.propertyOrNull("redis.host")?.getString()
-                        ?: "localhost",
-                    port = config.propertyOrNull("redis.port")
-                        ?.getString()?.toIntOrNull() ?: 6379
+                    host = envOrConfig(config, "REDIS_HOST", "redis.host") ?: "localhost",
+                    port = envIntOrConfig(config, "REDIS_PORT", "redis.port") ?: 6379
                 ),
                 s3 = S3Config(
-                    endpoint = config.propertyOrNull("s3.endpoint")?.getString()
+                    endpoint = envOrConfig(config, "S3_ENDPOINT", "s3.endpoint")
                         ?: "http://localhost:9000",
-                    accessKey = config.propertyOrNull("s3.accessKey")?.getString()
-                        ?: "minioadmin",
-                    secretKey = config.propertyOrNull("s3.secretKey")?.getString()
-                        ?: "minioadmin",
-                    bucket = config.propertyOrNull("s3.bucket")?.getString()
-                        ?: "travel-planner",
-                    region = config.propertyOrNull("s3.region")?.getString()
-                        ?: "us-east-1"
+                    accessKey = envOrConfig(config, "S3_ACCESS_KEY", "s3.accessKey") ?: "minioadmin",
+                    secretKey = envOrConfig(config, "S3_SECRET_KEY", "s3.secretKey") ?: "minioadmin",
+                    bucket = envOrConfig(config, "S3_BUCKET", "s3.bucket") ?: "travel-planner",
+                    region = envOrConfig(config, "S3_REGION", "s3.region") ?: "us-east-1"
                 ),
                 fcm = FcmConfig(
-                    serviceAccountPath = config.propertyOrNull("fcm.serviceAccountPath")
-                        ?.getString() ?: ""
+                    serviceAccountPath = envOrConfig(config, "FCM_SERVICE_ACCOUNT_PATH", "fcm.serviceAccountPath")
+                        ?: ""
                 )
             )
+        }
+
+        private fun envOrConfig(config: ApplicationConfig, envName: String, path: String): String? {
+            System.getenv(envName)?.trim()?.takeIf { it.isNotEmpty() }?.let { return it }
+            return config.propertyOrNull(path)?.getString()
+        }
+
+        private fun envIntOrConfig(config: ApplicationConfig, envName: String, path: String): Int? {
+            System.getenv(envName)?.trim()?.toIntOrNull()?.let { return it }
+            return config.propertyOrNull(path)?.getString()?.toIntOrNull()
+        }
+
+        private fun envLongOrConfig(config: ApplicationConfig, envName: String, path: String): Long? {
+            System.getenv(envName)?.trim()?.toLongOrNull()?.let { return it }
+            return config.propertyOrNull(path)?.getString()?.toLongOrNull()
         }
     }
 }
