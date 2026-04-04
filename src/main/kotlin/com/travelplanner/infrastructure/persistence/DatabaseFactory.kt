@@ -18,7 +18,7 @@ object DatabaseFactory {
                 jdbcUrl = config.url
                 username = config.user
                 password = config.password
-                maximumPoolSize = 1
+                maximumPoolSize = 2
                 isAutoCommit = true
                 poolName = "flyway"
                 validate()

@@ -1,7 +1,13 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.ktor)
     alias(libs.plugins.kotlin.plugin.serialization)
+}
+
+tasks.withType<ShadowJar>().configureEach {
+    mergeServiceFiles()
 }
 
 group = "com.travelplanner"
