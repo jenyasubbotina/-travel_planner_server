@@ -26,7 +26,7 @@ A collaborative travel planning backend built with Kotlin and Ktor. Travel Plann
 | Framework             | Ktor 3.4 (Netty engine)                   |
 | Database              | PostgreSQL 16                             |
 | ORM                   | Exposed 0.61                              |
-| Migrations            | Flyway 10.15                              |
+| Migrations            | Flyway 9.22                               |
 | Dependency Injection  | Koin 4.1                                  |
 | Authentication        | JWT (HMAC-SHA256) via ktor-auth-jwt       |
 | Caching               | Redis 7 (Lettuce client)                  |
