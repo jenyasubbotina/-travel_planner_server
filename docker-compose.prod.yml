@@ -8,6 +8,20 @@ services:
   app:
     image: ghcr.io/jenyasubbotina/travel_planner_server:latest
     pull_policy: always
+    working_dir: /app
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      export DATABASE_URL=jdbc:postgresql://postgres:5432/travel_planner
+      && export DATABASE_USER="$${DATABASE_USER:-tp_user}"
+      && export DATABASE_PASSWORD="$${DATABASE_PASSWORD:-tp_pass}"
+      && export REDIS_HOST="$${REDIS_HOST:-redis}"
+      && export REDIS_PORT="$${REDIS_PORT:-6379}"
+      && export S3_ENDPOINT="$${S3_ENDPOINT:-http://minio:9000}"
+      && export S3_ACCESS_KEY="$${S3_ACCESS_KEY:-minioadmin}"
+      && export S3_SECRET_KEY="$${S3_SECRET_KEY:-minioadmin}"
+      && export S3_BUCKET="$${S3_BUCKET:-travel-planner}"
+      && export S3_REGION="$${S3_REGION:-us-east-1}"
+      && exec java -jar app.jar
     ports:
       - "8080:8080"
     depends_on:
@@ -17,7 +31,7 @@ services:
         condition: service_healthy
       minio:
         condition: service_started
-    # Список KEY=value — как в docker-compose.yml: jdbc:/http: не ломают YAML (в отличие от map-формы).
+    # Список KEY=value — дублирует дефолты; реальные значения подхватывает sh из command выше.
     environment:
       - DATABASE_URL=jdbc:postgresql://postgres:5432/travel_planner
       - DATABASE_USER=${POSTGRES_USER:-tp_user}
