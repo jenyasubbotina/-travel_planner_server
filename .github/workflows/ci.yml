@@ -37,11 +37,21 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # github.repository can be owner/-repo — a leading "-" in the image path is invalid OCI reference format.
+      - name: Normalize GHCR image name
+        id: ghcr_image
+        run: |
+          owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')
+          name='${{ github.event.repository.name }}'
+          sanitized=$(printf '%s' "$name" | sed 's/^[._-]*//' | tr '[:upper:]' '[:lower:]')
+          [ -n "$sanitized" ] || sanitized=app
+          echo "image=ghcr.io/${owner}/${sanitized}" >> "$GITHUB_OUTPUT"
+
       - name: Docker image metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ${{ steps.ghcr_image.outputs.image }}
           tags: |
             type=sha,prefix=
             type=raw,value=latest,enable=${{ github.ref_name == 'main' || github.ref_name == 'master' }}
