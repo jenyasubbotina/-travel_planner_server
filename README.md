@@ -2,6 +2,22 @@
 
 A collaborative travel planning backend built with Kotlin and Ktor. Travel Planner enables groups of users to co-create trips, manage shared itineraries, track and split expenses, and stay synchronized across devices with offline-first capabilities and push notifications.
 
+## Дипломный проект
+
+**Тема:** бэкенд для мобильного/веб-приложения **Travel Planner** — совместное планирование поездок с друзьями: маршруты и точки на карте (itinerary), общие расходы и доли участников, приглашения в поездку, роли, вложения в S3, офлайн-синхронизация и push-уведомления (FCM). Сервер реализует REST API, хранит пользователей и доменные данные в PostgreSQL, выдаёт JWT, интегрируется с Redis и объектным хранилищем.
+
+В репозиторий добавлены и задокументированы следующие элементы:
+
+| Направление | Что сделано |
+|-------------|-------------|
+| **Проверка схемы БД при сборке** | Интеграционный тест [`ExposedSchemaMatchesFlywayTest`](src/test/kotlin/com/travelplanner/schema/ExposedSchemaMatchesFlywayTest.kt): поднимается PostgreSQL (Testcontainers), накатываются миграции Flyway, Exposed сравнивает фактическую схему с описанием таблиц в коде. Несоответствие даёт падение `./gradlew test`. Если Docker недоступен, тест **пропускается** (`disabledWithoutDocker = true`), чтобы локальная сборка не ломалась; в **CI на GitHub** Docker есть, проверка выполняется. |
+| **CI/CD** | [`.github/workflows/ci.yml`](.github/workflows/ci.yml): на push/PR в `main` или `master` — тесты, fat JAR, **артефакт `travel-planner-server-jar`** (`*-all.jar`, запуск: `java -jar …`). При **push** в `main`/`master` дополнительно **сборка и push Docker-образа** в **GitHub Container Registry** (`ghcr.io/<владелец>/<репозиторий>:latest` и тег по SHA). В PR образ только собирается (проверка `Dockerfile`), без публикации. |
+| **Метрики** | Плагин Micrometer для Ktor, реестр Prometheus, эндпоинт **`GET /metrics`** (формат scrape Prometheus). JVM-память, GC, процессор, HTTP-метрики Ktor. |
+| **Kubernetes** | Каталог [`k8s/`](k8s/): Namespace, **StatefulSet PostgreSQL**, **Deployment** приложения (2 реплики) и **Service**, Redis и MinIO, **Ingress** (класс `nginx`) как точка входа (балансировка на стороне контроллера), **DaemonSet Fluent Bit** + RBAC для сбора логов контейнеров с узлов кластера (вывод в stdout Fluent Bit; дальше можно подключить Loki/Elastic). |
+| **JUnit Platform** | В `testRuntimeOnly` добавлен `junit-platform-launcher` (совместимая с JUnit 5 версия платформы), чтобы Gradle 9 стабильно запускал тесты. |
+
+**OpenAPI / Swagger:** спецификация в [`src/main/resources/openapi/documentation.yaml`](src/main/resources/openapi/documentation.yaml), UI: **`/swagger`**. В спецификацию добавлен маршрут **`/metrics`**.
+
 ## Tech Stack
 
 | Component             | Technology                                |
@@ -19,6 +35,8 @@ A collaborative travel planning backend built with Kotlin and Ktor. Travel Plann
 | Serialization         | kotlinx.serialization (JSON)              |
 | Connection Pooling    | HikariCP 5.1                              |
 | Testing               | JUnit 5, MockK, Testcontainers            |
+| Metrics               | Micrometer, Prometheus registry           |
+| CI                    | GitHub Actions                            |
 
 ## Prerequisites
 
@@ -65,9 +83,40 @@ Expected response:
 ```json
 {
   "status": "UP",
-  "timestamp": "2025-01-15T10:30:00Z"
+  "timestamp": "2026-04-04T12:00:00.000Z"
 }
 ```
+
+### Metrics (Prometheus)
+
+```bash
+curl -s http://localhost:8080/metrics | head
+```
+
+### Swagger UI
+
+Open [http://localhost:8080/swagger](http://localhost:8080/swagger) in a browser.
+
+## Kubernetes (обзор)
+
+1. Создать образ приложения: `docker build -t travel-planner-server:local .`  
+2. Для minikube: `minikube image load travel-planner-server:local`  
+3. Установить [Ingress NGINX](https://kubernetes.github.io/ingress-nginx/deploy/) при необходимости.  
+4. Применить манифесты по порядку (после правки секретов в [`k8s/secrets.yaml`](k8s/secrets.yaml)):
+
+```bash
+kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/secrets.yaml
+kubectl apply -f k8s/postgres.yaml
+kubectl apply -f k8s/redis.yaml
+kubectl apply -f k8s/minio.yaml
+# дождаться готовности postgres-0
+kubectl apply -f k8s/app.yaml
+kubectl apply -f k8s/ingress.yaml
+kubectl apply -f k8s/fluent-bit.yaml
+```
+
+Добавьте `travel-planner.local` в `/etc/hosts` на IP Ingress-контроллера. Формат логов на нодах зависит от container runtime (CRI / Docker); при необходимости скорректируйте парсер во [`k8s/fluent-bit.yaml`](k8s/fluent-bit.yaml).
 
 ## Running Migrations
 
@@ -100,7 +149,25 @@ To run migrations independently (without starting the app), connect to the datab
 ./gradlew test --info
 ```
 
-Tests use **JUnit 5** with **MockK** for mocking and **Testcontainers** for integration tests against real PostgreSQL instances. See [docs/TESTING.md](docs/TESTING.md) for the full testing strategy.
+Tests use **JUnit 5** with **MockK** for mocking and **Testcontainers** where applicable. Тест **`ExposedSchemaMatchesFlywayTest`** проверяет соответствие миграций Flyway моделям Exposed и требует **Docker**; без Docker он помечается как пропущенный. See [docs/TESTING.md](docs/TESTING.md) for the full testing strategy.
+
+### Артефакты GitHub Actions
+
+После успешного workflow на вкладке **Actions** → выбранный run → **Artifacts** скачайте **`travel-planner-server-jar`**, распакуйте и запустите (нужен JRE 21 и доступная PostgreSQL/Redis/MinIO по переменным окружения):
+
+```bash
+java -jar travel-planner-server-all.jar
+```
+
+Образ из registry (только после **push** в `main`/`master`; пакет может быть приватным — включите чтение в настройках пакета или войдите):
+
+```bash
+docker login ghcr.io -u USERNAME
+docker pull ghcr.io/OWNER/REPO:latest
+docker run -p 8080:8080 -e DATABASE_URL=... ghcr.io/OWNER/REPO:latest
+```
+
+Подставьте `OWNER/REPO` из URL репозитория (в нижнем регистре для `docker pull`, как формирует GHCR).
 
 ## API Overview
 

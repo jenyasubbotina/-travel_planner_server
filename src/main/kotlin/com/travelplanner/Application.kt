@@ -37,6 +37,7 @@ fun Application.module() {
     DatabaseFactory.init(appConfig.database)
 
     configureCallLogging()
+    val prometheusRegistry = configureMetrics()
     configureContentNegotiation()
     configureCORS()
     configureStatusPages()
@@ -53,6 +54,7 @@ fun Application.module() {
     launch { outboxProcessor.start(this) }
 
     routing {
+        metricsRoute(prometheusRegistry)
         swaggerUI(path = "swagger", swaggerFile = "openapi/documentation.yaml")
         healthRoutes()
         authRoutes()

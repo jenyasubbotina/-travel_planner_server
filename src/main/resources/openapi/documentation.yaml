@@ -1,0 +1,1377 @@
+openapi: 3.0.3
+info:
+  title: Travel Planner Server API
+  version: 1.0.0
+  description: Minimal OpenAPI documentation for the Travel Planner backend.
+servers:
+  - url: http://localhost:8080
+tags:
+  - name: Health
+  - name: Auth
+  - name: Users
+  - name: Trips
+  - name: Participants
+  - name: Itinerary
+  - name: Expenses
+  - name: Analytics
+  - name: Attachments
+  - name: Sync
+  - name: Observability
+paths:
+  /health/live:
+    get:
+      tags: [Health]
+      summary: Liveness probe
+      responses:
+        "200":
+          description: Service is alive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+  /health/ready:
+    get:
+      tags: [Health]
+      summary: Readiness probe
+      responses:
+        "200":
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+  /metrics:
+    get:
+      tags: [Observability]
+      summary: Prometheus metrics (Micrometer scrape endpoint)
+      responses:
+        "200":
+          description: Prometheus text exposition format
+          content:
+            text/plain:
+              schema:
+                type: string
+  /api/v1/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: User registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: Log in
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+  /api/v1/auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshTokenRequest"
+      responses:
+        "200":
+          description: Tokens refreshed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenPairResponse"
+  /api/v1/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Log out current user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Logout successful
+  /api/v1/me:
+    get:
+      tags: [Users]
+      summary: Get current user profile
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+  /api/v1/me/devices:
+    post:
+      tags: [Users]
+      summary: Register user device for push notifications
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterDeviceRequest"
+      responses:
+        "201":
+          description: Device registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceResponse"
+  /api/v1/me/devices/{deviceId}:
+    delete:
+      tags: [Users]
+      summary: Remove registered device
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/DeviceId"
+      responses:
+        "204":
+          description: Device removed
+  /api/v1/trips:
+    get:
+      tags: [Trips]
+      summary: List trips for current user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Trip list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TripResponse"
+    post:
+      tags: [Trips]
+      summary: Create a trip
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTripRequest"
+      responses:
+        "201":
+          description: Trip created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripResponse"
+  /api/v1/trips/{tripId}:
+    get:
+      tags: [Trips]
+      summary: Get trip details
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      responses:
+        "200":
+          description: Trip details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripResponse"
+    patch:
+      tags: [Trips]
+      summary: Update a trip
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTripRequest"
+      responses:
+        "200":
+          description: Trip updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripResponse"
+    delete:
+      tags: [Trips]
+      summary: Delete a trip
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      responses:
+        "204":
+          description: Trip deleted
+  /api/v1/trips/{tripId}/archive:
+    post:
+      tags: [Trips]
+      summary: Archive a trip
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      responses:
+        "200":
+          description: Trip archived
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripResponse"
+  /api/v1/trips/{tripId}/participants:
+    get:
+      tags: [Participants]
+      summary: List trip participants
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      responses:
+        "200":
+          description: Participant list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ParticipantDetailResponse"
+  /api/v1/trips/{tripId}/participants/invite:
+    post:
+      tags: [Participants]
+      summary: Invite participant to a trip
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InviteParticipantRequest"
+      responses:
+        "201":
+          description: Invitation created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitationResponse"
+  /api/v1/trips/{tripId}/participants/{userId}:
+    delete:
+      tags: [Participants]
+      summary: Remove participant from trip
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "204":
+          description: Participant removed
+    patch:
+      tags: [Participants]
+      summary: Change participant role
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangeRoleRequest"
+      responses:
+        "200":
+          description: Role updated
+  /api/v1/trip-invitations/{invitationId}/accept:
+    post:
+      tags: [Participants]
+      summary: Accept trip invitation
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/InvitationId"
+      responses:
+        "200":
+          description: Invitation accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ParticipantResponse"
+  /api/v1/trips/{tripId}/itinerary:
+    get:
+      tags: [Itinerary]
+      summary: List itinerary points
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      responses:
+        "200":
+          description: Itinerary points
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ItineraryPointResponse"
+    post:
+      tags: [Itinerary]
+      summary: Create itinerary point
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateItineraryPointRequest"
+      responses:
+        "201":
+          description: Itinerary point created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItineraryPointResponse"
+  /api/v1/trips/{tripId}/itinerary/{pointId}:
+    patch:
+      tags: [Itinerary]
+      summary: Update itinerary point
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+        - $ref: "#/components/parameters/PointId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateItineraryPointRequest"
+      responses:
+        "200":
+          description: Itinerary point updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItineraryPointResponse"
+    delete:
+      tags: [Itinerary]
+      summary: Delete itinerary point
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+        - $ref: "#/components/parameters/PointId"
+      responses:
+        "204":
+          description: Itinerary point deleted
+  /api/v1/trips/{tripId}/itinerary/reorder:
+    post:
+      tags: [Itinerary]
+      summary: Reorder itinerary points
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReorderRequest"
+      responses:
+        "200":
+          description: Reorder successful
+  /api/v1/trips/{tripId}/expenses:
+    get:
+      tags: [Expenses]
+      summary: List expenses
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+        - in: query
+          name: category
+          schema:
+            type: string
+        - in: query
+          name: payerUserId
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: dateFrom
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: dateTo
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Expense list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ExpenseResponse"
+    post:
+      tags: [Expenses]
+      summary: Create expense
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateExpenseRequest"
+      responses:
+        "201":
+          description: Expense created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExpenseResponse"
+  /api/v1/trips/{tripId}/expenses/{expenseId}:
+    get:
+      tags: [Expenses]
+      summary: Get expense details
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+        - $ref: "#/components/parameters/ExpenseId"
+      responses:
+        "200":
+          description: Expense details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExpenseResponse"
+    patch:
+      tags: [Expenses]
+      summary: Update expense
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+        - $ref: "#/components/parameters/ExpenseId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateExpenseRequest"
+      responses:
+        "200":
+          description: Expense updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExpenseResponse"
+    delete:
+      tags: [Expenses]
+      summary: Delete expense
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+        - $ref: "#/components/parameters/ExpenseId"
+      responses:
+        "204":
+          description: Expense deleted
+  /api/v1/trips/{tripId}/balances:
+    get:
+      tags: [Analytics]
+      summary: Calculate balances
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      responses:
+        "200":
+          description: Balances
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BalanceResponse"
+  /api/v1/trips/{tripId}/settlements:
+    get:
+      tags: [Analytics]
+      summary: Calculate settlements
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      responses:
+        "200":
+          description: Settlements
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SettlementResponse"
+  /api/v1/trips/{tripId}/statistics:
+    get:
+      tags: [Analytics]
+      summary: Get trip statistics
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      responses:
+        "200":
+          description: Statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatisticsResponse"
+  /api/v1/attachments/presign:
+    post:
+      tags: [Attachments]
+      summary: Request presigned upload URL
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PresignUploadRequest"
+      responses:
+        "200":
+          description: Presigned upload metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PresignedUploadResponse"
+  /api/v1/attachments/{attachmentId}:
+    delete:
+      tags: [Attachments]
+      summary: Delete attachment
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/AttachmentId"
+      responses:
+        "204":
+          description: Attachment deleted
+  /api/v1/trips/{tripId}/attachments:
+    post:
+      tags: [Attachments]
+      summary: Create trip attachment metadata
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAttachmentRequest"
+      responses:
+        "201":
+          description: Attachment created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttachmentResponse"
+  /api/v1/trips/{tripId}/expenses/{expenseId}/attachments:
+    post:
+      tags: [Attachments]
+      summary: Create expense attachment metadata
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+        - $ref: "#/components/parameters/ExpenseId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAttachmentRequest"
+      responses:
+        "201":
+          description: Attachment created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttachmentResponse"
+  /api/v1/trips/{tripId}/snapshot:
+    get:
+      tags: [Sync]
+      summary: Get full trip snapshot
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+      responses:
+        "200":
+          description: Trip snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SnapshotResponse"
+  /api/v1/trips/{tripId}/sync:
+    get:
+      tags: [Sync]
+      summary: Get delta sync data
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/TripId"
+        - in: query
+          name: cursor
+          required: true
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: Sync delta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeltaResponse"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    TripId:
+      in: path
+      name: tripId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    UserId:
+      in: path
+      name: userId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    DeviceId:
+      in: path
+      name: deviceId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    InvitationId:
+      in: path
+      name: invitationId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    PointId:
+      in: path
+      name: pointId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ExpenseId:
+      in: path
+      name: expenseId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    AttachmentId:
+      in: path
+      name: attachmentId
+      required: true
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+    RegisterRequest:
+      type: object
+      required: [email, displayName, password]
+      properties:
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+        password:
+          type: string
+          format: password
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+    RefreshTokenRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+    TokenPairResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        displayName:
+          type: string
+        avatarUrl:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+    AuthResponse:
+      allOf:
+        - $ref: "#/components/schemas/TokenPairResponse"
+        - type: object
+          properties:
+            user:
+              $ref: "#/components/schemas/UserResponse"
+    RegisterDeviceRequest:
+      type: object
+      required: [fcmToken, deviceName]
+      properties:
+        fcmToken:
+          type: string
+        deviceName:
+          type: string
+    DeviceResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        fcmToken:
+          type: string
+        deviceName:
+          type: string
+        createdAt:
+          type: string
+    CreateTripRequest:
+      type: object
+      required: [title, baseCurrency]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        startDate:
+          type: string
+          format: date
+          nullable: true
+        endDate:
+          type: string
+          format: date
+          nullable: true
+        baseCurrency:
+          type: string
+    UpdateTripRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        startDate:
+          type: string
+          format: date
+          nullable: true
+        endDate:
+          type: string
+          format: date
+          nullable: true
+        baseCurrency:
+          type: string
+          nullable: true
+        status:
+          type: string
+          nullable: true
+        expectedVersion:
+          type: integer
+          format: int64
+    TripResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        startDate:
+          type: string
+          nullable: true
+        endDate:
+          type: string
+          nullable: true
+        baseCurrency:
+          type: string
+        status:
+          type: string
+        createdBy:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+        version:
+          type: integer
+          format: int64
+        deletedAt:
+          type: string
+          nullable: true
+    InviteParticipantRequest:
+      type: object
+      required: [email, role]
+      properties:
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+    ChangeRoleRequest:
+      type: object
+      required: [role]
+      properties:
+        role:
+          type: string
+    ParticipantResponse:
+      type: object
+      properties:
+        tripId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        role:
+          type: string
+        joinedAt:
+          type: string
+    ParticipantDetailResponse:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        email:
+          type: string
+        displayName:
+          type: string
+        avatarUrl:
+          type: string
+          nullable: true
+        role:
+          type: string
+        joinedAt:
+          type: string
+    InvitationResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tripId:
+          type: string
+          format: uuid
+        email:
+          type: string
+        role:
+          type: string
+        status:
+          type: string
+        createdAt:
+          type: string
+    CreateItineraryPointRequest:
+      type: object
+      required: [title, type]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        type:
+          type: string
+        date:
+          type: string
+          format: date
+          nullable: true
+        startTime:
+          type: string
+          nullable: true
+        endTime:
+          type: string
+          nullable: true
+        latitude:
+          type: number
+          format: double
+          nullable: true
+        longitude:
+          type: number
+          format: double
+          nullable: true
+        address:
+          type: string
+          nullable: true
+    UpdateItineraryPointRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        type:
+          type: string
+          nullable: true
+        date:
+          type: string
+          format: date
+          nullable: true
+        startTime:
+          type: string
+          nullable: true
+        endTime:
+          type: string
+          nullable: true
+        latitude:
+          type: number
+          format: double
+          nullable: true
+        longitude:
+          type: number
+          format: double
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        expectedVersion:
+          type: integer
+          format: int64
+    ReorderRequest:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              sortOrder:
+                type: integer
+    ItineraryPointResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tripId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        type:
+          type: string
+        date:
+          type: string
+          nullable: true
+        startTime:
+          type: string
+          nullable: true
+        endTime:
+          type: string
+          nullable: true
+        latitude:
+          type: number
+          nullable: true
+        longitude:
+          type: number
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        sortOrder:
+          type: integer
+        createdBy:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+        version:
+          type: integer
+        deletedAt:
+          type: string
+          nullable: true
+    ExpenseSplitInput:
+      type: object
+      required: [participantUserId, value]
+      properties:
+        participantUserId:
+          type: string
+          format: uuid
+        value:
+          type: string
+    CreateExpenseRequest:
+      type: object
+      required:
+        [title, amount, currency, category, expenseDate, splitType, payerUserId, splits]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        amount:
+          type: string
+        currency:
+          type: string
+        category:
+          type: string
+        expenseDate:
+          type: string
+          format: date
+        splitType:
+          type: string
+        payerUserId:
+          type: string
+          format: uuid
+        splits:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExpenseSplitInput"
+    UpdateExpenseRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        amount:
+          type: string
+          nullable: true
+        currency:
+          type: string
+          nullable: true
+        category:
+          type: string
+          nullable: true
+        expenseDate:
+          type: string
+          format: date
+          nullable: true
+        splitType:
+          type: string
+          nullable: true
+        payerUserId:
+          type: string
+          format: uuid
+          nullable: true
+        splits:
+          type: array
+          nullable: true
+          items:
+            $ref: "#/components/schemas/ExpenseSplitInput"
+        expectedVersion:
+          type: integer
+          format: int64
+    ExpenseSplitResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        participantUserId:
+          type: string
+          format: uuid
+        shareType:
+          type: string
+        value:
+          type: string
+        amountInExpenseCurrency:
+          type: string
+    ExpenseResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tripId:
+          type: string
+          format: uuid
+        payerUserId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        amount:
+          type: string
+        currency:
+          type: string
+        category:
+          type: string
+        expenseDate:
+          type: string
+        splitType:
+          type: string
+        splits:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExpenseSplitResponse"
+        createdBy:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+        version:
+          type: integer
+        deletedAt:
+          type: string
+          nullable: true
+    BalanceResponse:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        totalPaid:
+          type: string
+        totalOwed:
+          type: string
+        netBalance:
+          type: string
+    SettlementResponse:
+      type: object
+      properties:
+        fromUserId:
+          type: string
+          format: uuid
+        toUserId:
+          type: string
+          format: uuid
+        amount:
+          type: string
+        currency:
+          type: string
+    StatisticsResponse:
+      type: object
+      properties:
+        totalSpent:
+          type: string
+        currency:
+          type: string
+        spentByCategory:
+          type: object
+          additionalProperties:
+            type: string
+        spentByParticipant:
+          type: object
+          additionalProperties:
+            type: string
+        spentByDay:
+          type: object
+          additionalProperties:
+            type: string
+    PresignUploadRequest:
+      type: object
+      required: [tripId, fileName, contentType, fileSize]
+      properties:
+        tripId:
+          type: string
+          format: uuid
+        fileName:
+          type: string
+        contentType:
+          type: string
+        fileSize:
+          type: integer
+          format: int64
+    PresignedUploadResponse:
+      type: object
+      properties:
+        uploadUrl:
+          type: string
+        s3Key:
+          type: string
+    CreateAttachmentRequest:
+      type: object
+      required: [fileName, fileSize, mimeType, s3Key]
+      properties:
+        fileName:
+          type: string
+        fileSize:
+          type: integer
+          format: int64
+        mimeType:
+          type: string
+        s3Key:
+          type: string
+    AttachmentResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tripId:
+          type: string
+          format: uuid
+        expenseId:
+          type: string
+          format: uuid
+          nullable: true
+        uploadedBy:
+          type: string
+          format: uuid
+        fileName:
+          type: string
+        fileSize:
+          type: integer
+          format: int64
+        mimeType:
+          type: string
+        s3Key:
+          type: string
+        createdAt:
+          type: string
+    SnapshotResponse:
+      type: object
+      properties:
+        trip:
+          $ref: "#/components/schemas/TripResponse"
+        participants:
+          type: array
+          items:
+            $ref: "#/components/schemas/ParticipantResponse"
+        itineraryPoints:
+          type: array
+          items:
+            $ref: "#/components/schemas/ItineraryPointResponse"
+        expenses:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExpenseResponse"
+        attachments:
+          type: array
+          items:
+            $ref: "#/components/schemas/AttachmentResponse"
+        cursor:
+          type: string
+    DeltaResponse:
+      type: object
+      properties:
+        trips:
+          type: array
+          items:
+            $ref: "#/components/schemas/TripResponse"
+        participants:
+          type: array
+          items:
+            $ref: "#/components/schemas/ParticipantResponse"
+        itineraryPoints:
+          type: array
+          items:
+            $ref: "#/components/schemas/ItineraryPointResponse"
+        expenses:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExpenseResponse"
+        attachments:
+          type: array
+          items:
+            $ref: "#/components/schemas/AttachmentResponse"
+        cursor:
+          type: string

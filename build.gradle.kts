@@ -39,6 +39,8 @@ dependencies {
     implementation(libs.ktor.server.status.pages)
     implementation(libs.ktor.server.call.logging)
     implementation(libs.ktor.server.call.id)
+    implementation(libs.ktor.server.metrics.micrometer)
+    implementation(libs.micrometer.registry.prometheus)
     implementation(libs.ktor.server.swagger)
     implementation(libs.ktor.server.request.validation)
     implementation(libs.ktor.server.double.receive)
@@ -86,4 +88,5 @@ dependencies {
     testImplementation(libs.testcontainers)
     testImplementation(libs.testcontainers.postgresql)
     testImplementation(libs.testcontainers.junit)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }
