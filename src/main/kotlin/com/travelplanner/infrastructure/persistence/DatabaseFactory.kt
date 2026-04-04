@@ -11,6 +11,29 @@ import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransacti
 object DatabaseFactory {
 
     fun init(config: DatabaseConfig) {
+        // Отдельный пул с autoCommit=true для Flyway: иначе на некоторых драйверах/настройках
+        // миграции могут не закоммититься, а приложение стартует без части таблиц (например domain_events).
+        val flywayDs = HikariDataSource(
+            HikariConfig().apply {
+                jdbcUrl = config.url
+                username = config.user
+                password = config.password
+                maximumPoolSize = 1
+                isAutoCommit = true
+                poolName = "flyway"
+                validate()
+            }
+        )
+        try {
+            Flyway.configure()
+                .dataSource(flywayDs)
+                .locations("classpath:db/migration")
+                .load()
+                .migrate()
+        } finally {
+            flywayDs.close()
+        }
+
         val hikariConfig = HikariConfig().apply {
             jdbcUrl = config.url
             username = config.user
@@ -21,12 +44,6 @@ object DatabaseFactory {
             validate()
         }
         val dataSource = HikariDataSource(hikariConfig)
-
-        Flyway.configure()
-            .dataSource(dataSource)
-            .locations("classpath:db/migration")
-            .load()
-            .migrate()
 
         Database.connect(dataSource)
     }
