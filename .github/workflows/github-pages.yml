@@ -1,0 +1,46 @@
+name: GitHub Pages
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Собрать статический сайт
+        run: |
+          mkdir -p _site
+          cp pages/index.html _site/index.html
+          cp src/main/resources/openapi/documentation.yaml _site/openapi.yaml
+
+      - name: Загрузить артефакт для Pages (только main/master, push)
+        if: github.event_name == 'push'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    if: github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'master')
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Опубликовать на GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -7,8 +7,8 @@ CREATE TABLE attachments (
     file_size BIGINT NOT NULL,
     mime_type VARCHAR(100) NOT NULL,
     s3_key VARCHAR(500) NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    deleted_at TIMESTAMPTZ
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP
 );
 
 CREATE INDEX idx_attachments_trip ON attachments(trip_id);

@@ -58,11 +58,13 @@ The server will be available at `http://localhost:8080`.
 
 ### Option 2: Local Development
 
-1. **Start infrastructure services only:**
+1. **Start infrastructure first (required).** Without PostgreSQL on **port 5433**, `./gradlew run` fails at startup with a HikariPool connection error.
 
    ```bash
-   docker-compose up postgres redis minio
+   docker compose up -d postgres redis minio
    ```
+
+   Wait until Postgres is ready (`docker compose ps` shows `postgres` healthy), then proceed.
 
 2. **Run the application:**
 
@@ -125,6 +127,8 @@ Flyway migrations run **automatically** on application startup. Migration files 
 ```
 src/main/resources/db/migration/
 ```
+
+Схема в SQL согласована с моделями Exposed: тип времени **`TIMESTAMP`** (без time zone), значения по умолчанию времени — **`CURRENT_TIMESTAMP`** (как в Exposed `CurrentTimestamp`), UUID с **`gen_random_uuid()`**. Если у вас уже была применена старая версия миграций (другие checksums), для чистой пересборки БД можно пересоздать том: `docker compose down -v` и снова поднять сервисы.
 
 Current migrations:
 

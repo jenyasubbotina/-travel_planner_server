@@ -10,10 +10,10 @@ CREATE TABLE expenses (
     expense_date DATE NOT NULL,
     split_type VARCHAR(20) NOT NULL DEFAULT 'EQUAL',
     created_by UUID NOT NULL REFERENCES users(id),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     version BIGINT NOT NULL DEFAULT 1,
-    deleted_at TIMESTAMPTZ
+    deleted_at TIMESTAMP
 );
 
 CREATE INDEX idx_expenses_trip ON expenses(trip_id);

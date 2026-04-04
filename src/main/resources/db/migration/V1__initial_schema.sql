@@ -5,8 +5,8 @@ CREATE TABLE users (
     display_name VARCHAR(255) NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     avatar_url VARCHAR(500),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_users_email ON users(email);
@@ -17,7 +17,7 @@ CREATE TABLE user_devices (
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     fcm_token VARCHAR(500) NOT NULL,
     device_name VARCHAR(255),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(user_id, fcm_token)
 );
 
@@ -28,8 +28,8 @@ CREATE TABLE auth_refresh_tokens (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     token_hash VARCHAR(255) NOT NULL UNIQUE,
-    expires_at TIMESTAMPTZ NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_refresh_tokens_user ON auth_refresh_tokens(user_id);
@@ -45,10 +45,10 @@ CREATE TABLE trips (
     base_currency VARCHAR(10) NOT NULL DEFAULT 'USD',
     status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
     created_by UUID NOT NULL REFERENCES users(id),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     version BIGINT NOT NULL DEFAULT 1,
-    deleted_at TIMESTAMPTZ
+    deleted_at TIMESTAMP
 );
 
 CREATE INDEX idx_trips_created_by ON trips(created_by);
@@ -60,7 +60,7 @@ CREATE TABLE trip_participants (
     trip_id UUID NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     role VARCHAR(20) NOT NULL DEFAULT 'EDITOR',
-    joined_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    joined_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (trip_id, user_id)
 );
 
@@ -74,8 +74,8 @@ CREATE TABLE trip_invitations (
     invited_by UUID NOT NULL REFERENCES users(id),
     role VARCHAR(20) NOT NULL DEFAULT 'EDITOR',
     status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    resolved_at TIMESTAMPTZ
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    resolved_at TIMESTAMP
 );
 
 CREATE INDEX idx_trip_invitations_trip ON trip_invitations(trip_id);
