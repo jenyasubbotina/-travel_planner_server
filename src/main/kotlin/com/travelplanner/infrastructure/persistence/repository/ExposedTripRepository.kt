@@ -52,6 +52,7 @@ class ExposedTripRepository : TripRepository {
             it[totalBudget] = trip.totalBudget
             it[destination] = trip.destination
             it[imageUrl] = trip.imageUrl
+            it[joinCode] = trip.joinCode
             it[status] = trip.status.name
             it[createdBy] = trip.createdBy
             it[createdAt] = trip.createdAt
@@ -74,11 +75,19 @@ class ExposedTripRepository : TripRepository {
             it[totalBudget] = trip.totalBudget
             it[destination] = trip.destination
             it[imageUrl] = trip.imageUrl
+            it[joinCode] = trip.joinCode
             it[status] = trip.status.name
             it[updatedAt] = now
             it[version] = newVersion
         }
         trip.copy(updatedAt = now, version = newVersion)
+    }
+
+    override suspend fun findByJoinCode(joinCode: String): Trip? = dbQuery {
+        TripsTable.selectAll()
+            .where { (TripsTable.joinCode eq joinCode) and TripsTable.deletedAt.isNull() }
+            .singleOrNull()
+            ?.toTrip()
     }
 
     override suspend fun softDelete(id: UUID, deletedAt: Instant): Boolean = dbQuery {
@@ -108,6 +117,7 @@ class ExposedTripRepository : TripRepository {
         totalBudget = this[TripsTable.totalBudget],
         destination = this[TripsTable.destination],
         imageUrl = this[TripsTable.imageUrl],
+        joinCode = this[TripsTable.joinCode],
         status = TripStatus.valueOf(this[TripsTable.status]),
         createdBy = this[TripsTable.createdBy],
         createdAt = this[TripsTable.createdAt],

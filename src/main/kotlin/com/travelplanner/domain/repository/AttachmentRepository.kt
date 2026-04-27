@@ -6,6 +6,7 @@ import java.util.UUID
 
 interface AttachmentRepository {
     suspend fun findByTrip(tripId: UUID): List<Attachment>
+    suspend fun findByTrip(tripId: UUID, includeExpenseAttachments: Boolean): List<Attachment>
     suspend fun findByExpense(expenseId: UUID): List<Attachment>
     suspend fun findById(id: UUID): Attachment?
     suspend fun create(attachment: Attachment): Attachment

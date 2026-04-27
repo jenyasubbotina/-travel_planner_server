@@ -45,7 +45,7 @@ import kotlin.test.assertTrue
  * Asserts:
  *  - CreateTripUseCase writes a TRIP_CREATED row in the same transaction as the aggregate.
  *  - InviteParticipantUseCase writes INVITATION_CREATED with the invitee's user id.
- *  - CreateItineraryPointUseCase writes ITINERARY_UPDATED.
+ *  - CreateItineraryPointUseCase writes ITINERARY_POINT_CREATED.
  *  - OutboxProcessor.processEvents marks events as processed without throwing.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -166,7 +166,12 @@ class OutboxSmokeTest {
 
         val tripPayload = Json.parseToJsonElement(tripCreated.payload).jsonObject
         assertEquals(owner.id.toString(), tripPayload["actorUserId"]?.jsonPrimitive?.content)
-        assertEquals("Smoke Trip", tripPayload["tripTitle"]?.jsonPrimitive?.content)
+        val tripEntity = tripPayload["entity"]?.jsonObject
+        assertEquals(
+            "Smoke Trip",
+            tripEntity?.get("title")?.jsonPrimitive?.content,
+            "TRIP_CREATED must expose title at payload.entity.title (HistoryPayload.tripSnapshot) so OutboxProcessor can render real names instead of \"Untitled\""
+        )
 
         // Drain the processor so we can isolate the next event.
         outboxProcessor.processEvents()
@@ -189,17 +194,22 @@ class OutboxSmokeTest {
         val invitationEvent = events[0]
         assertEquals("INVITATION_CREATED", invitationEvent.eventType)
         val invitationPayload = Json.parseToJsonElement(invitationEvent.payload).jsonObject
-        assertEquals(invitation.id.toString(), invitationPayload["invitationId"]?.jsonPrimitive?.content)
+        assertEquals(
+            invitation.id.toString(),
+            invitationPayload["entityId"]?.jsonPrimitive?.content,
+            "INVITATION_CREATED must carry the invitation id at top-level entityId — that's what OutboxProcessor reads into FCM data.invitationId"
+        )
+        val invitationContext = invitationPayload["context"]?.jsonObject
         assertEquals(
             invitee.id.toString(),
-            invitationPayload["inviteeUserId"]?.jsonPrimitive?.content,
-            "Payload must include inviteeUserId for registered users so the processor can push to their devices"
+            invitationContext?.get("inviteeUserId")?.jsonPrimitive?.content,
+            "Payload must include inviteeUserId in context for registered users so the processor can push to their devices"
         )
 
         outboxProcessor.processEvents()
         assertTrue(domainEventRepository.findUnprocessed().isEmpty())
 
-        // 3) Create an itinerary point — expect ITINERARY_UPDATED keyed by tripId
+        // 3) Create an itinerary point — expect ITINERARY_POINT_CREATED keyed by tripId
         val point = createItineraryPointUseCase.execute(
             CreateItineraryPointUseCase.Input(
                 tripId = trip.id,
@@ -208,17 +218,26 @@ class OutboxSmokeTest {
             )
         )
         events = domainEventRepository.findUnprocessed()
-        assertEquals(1, events.size, "Expected ITINERARY_UPDATED after CreateItineraryPointUseCase")
+        assertEquals(1, events.size, "Expected ITINERARY_POINT_CREATED after CreateItineraryPointUseCase")
         val itineraryEvent = events[0]
-        assertEquals("ITINERARY_UPDATED", itineraryEvent.eventType)
+        assertEquals("ITINERARY_POINT_CREATED", itineraryEvent.eventType)
         assertEquals(
             trip.id,
             itineraryEvent.aggregateId,
             "Itinerary events must use tripId as aggregateId so OutboxProcessor resolves participants"
         )
         val itineraryPayload = Json.parseToJsonElement(itineraryEvent.payload).jsonObject
-        assertEquals(point.id.toString(), itineraryPayload["pointId"]?.jsonPrimitive?.content)
-        assertEquals("CREATED", itineraryPayload["change"]?.jsonPrimitive?.content)
+        assertEquals(
+            point.id.toString(),
+            itineraryPayload["entityId"]?.jsonPrimitive?.content,
+            "ITINERARY_POINT_CREATED must carry the point id at top-level entityId"
+        )
+        val itineraryEntity = itineraryPayload["entity"]?.jsonObject
+        assertEquals(
+            "Senso-ji",
+            itineraryEntity?.get("title")?.jsonPrimitive?.content,
+            "ITINERARY_POINT_CREATED must include the point title at payload.entity.title (HistoryPayload.eventSnapshot)"
+        )
 
         outboxProcessor.processEvents()
         assertTrue(domainEventRepository.findUnprocessed().isEmpty())

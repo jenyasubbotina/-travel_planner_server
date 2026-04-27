@@ -1,5 +1,6 @@
 package com.travelplanner.application.usecase.participant
 
+import com.travelplanner.domain.event.HistoryPayload
 import com.travelplanner.domain.exception.DomainException
 import com.travelplanner.domain.model.DomainEvent
 import com.travelplanner.domain.repository.DomainEventRepository
@@ -58,11 +59,16 @@ class RemoveParticipantUseCase(
                 eventType = "PARTICIPANT_REMOVED",
                 aggregateType = "TRIP",
                 aggregateId = input.tripId,
-                payload = buildJsonObject {
-                    put("actorUserId", input.requesterUserId.toString())
-                    put("participantUserId", input.targetUserId.toString())
-                    put("participantName", targetUser?.displayName ?: "Someone")
-                }.toString(),
+                payload = HistoryPayload.build(
+                    actorUserId = input.requesterUserId,
+                    entityType = HistoryPayload.EntityType.PARTICIPANT,
+                    entityId = input.targetUserId,
+                    actionType = HistoryPayload.ActionType.DELETE,
+                    context = buildJsonObject {
+                        put("participantUserId", input.targetUserId.toString())
+                        put("participantName", targetUser?.displayName ?: "Someone")
+                    },
+                ),
                 createdAt = Instant.now()
             )
         )

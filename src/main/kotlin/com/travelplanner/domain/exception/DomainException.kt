@@ -32,6 +32,13 @@ sealed class DomainException(override val message: String, val code: String) : R
     class VersionConflict(entity: String, id: UUID) : DomainException("Version conflict for $entity $id", "VERSION_CONFLICT")
     class IdempotencyConflict(key: String) : DomainException("Duplicate mutation: $key", "IDEMPOTENCY_CONFLICT")
     class InvitationAlreadyResolved(id: UUID) : DomainException("Invitation $id already resolved", "INVITATION_ALREADY_RESOLVED")
+    class PendingUpdateStored(val expenseId: UUID) : DomainException("Conflicting edit stored as pending", "PENDING_UPDATE_STORED")
+    class NoPendingUpdate(val expenseId: UUID) : DomainException("No pending update for expense $expenseId", "NO_PENDING_UPDATE")
+    class AnotherPendingUpdate(val expenseId: UUID, val proposerUserId: UUID) :
+        DomainException(
+            "Another participant has already proposed an edit to expense $expenseId; wait for it to be resolved",
+            "ANOTHER_PENDING_UPDATE",
+        )
 
     // Trip state
     class TripNotActive(id: UUID) : DomainException("Trip $id is not active", "TRIP_NOT_ACTIVE")

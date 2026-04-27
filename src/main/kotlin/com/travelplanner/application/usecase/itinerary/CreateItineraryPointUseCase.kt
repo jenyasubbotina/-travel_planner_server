@@ -1,5 +1,6 @@
 package com.travelplanner.application.usecase.itinerary
 
+import com.travelplanner.domain.event.HistoryPayload
 import com.travelplanner.domain.exception.DomainException
 import com.travelplanner.domain.model.DomainEvent
 import com.travelplanner.domain.model.ItineraryPoint
@@ -10,8 +11,6 @@ import com.travelplanner.domain.repository.ItineraryRepository
 import com.travelplanner.domain.repository.ParticipantRepository
 import com.travelplanner.domain.repository.TransactionRunner
 import com.travelplanner.domain.repository.TripRepository
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -32,6 +31,7 @@ class CreateItineraryPointUseCase(
         val description: String? = null,
         val subtitle: String? = null,
         val type: String? = null,
+        val category: String? = null,
         val date: LocalDate? = null,
         val dayIndex: Int = 0,
         val startTime: LocalTime? = null,
@@ -93,6 +93,7 @@ class CreateItineraryPointUseCase(
             description = input.description?.trim(),
             subtitle = input.subtitle?.trim(),
             type = input.type?.trim(),
+            category = input.category?.trim()?.takeIf { it.isNotEmpty() },
             date = input.date,
             dayIndex = input.dayIndex,
             startTime = input.startTime,
@@ -117,14 +118,16 @@ class CreateItineraryPointUseCase(
         domainEventRepository.save(
             DomainEvent(
                 id = UUID.randomUUID(),
-                eventType = "ITINERARY_UPDATED",
+                eventType = "ITINERARY_POINT_CREATED",
                 aggregateType = "TRIP",
                 aggregateId = input.tripId,
-                payload = buildJsonObject {
-                    put("actorUserId", input.userId.toString())
-                    put("pointId", created.id.toString())
-                    put("change", "CREATED")
-                }.toString(),
+                payload = HistoryPayload.build(
+                    actorUserId = input.userId,
+                    entityType = HistoryPayload.EntityType.EVENT,
+                    entityId = created.id,
+                    actionType = HistoryPayload.ActionType.CREATE,
+                    entity = HistoryPayload.eventSnapshot(created),
+                ),
                 createdAt = now
             )
         )

@@ -82,6 +82,15 @@ fun Application.configureStatusPages() {
                 // Trip state errors
                 is DomainException.TripNotActive ->
                     HttpStatusCode.UnprocessableEntity to ErrorResponse(cause.code, cause.message)
+
+                is DomainException.PendingUpdateStored ->
+                    HttpStatusCode.Conflict to ErrorResponse(cause.code, cause.message)
+
+                is DomainException.NoPendingUpdate ->
+                    HttpStatusCode.NotFound to ErrorResponse(cause.code, cause.message)
+
+                is DomainException.AnotherPendingUpdate ->
+                    HttpStatusCode.Conflict to ErrorResponse(cause.code, cause.message)
             }
             call.respond(status, response)
         }

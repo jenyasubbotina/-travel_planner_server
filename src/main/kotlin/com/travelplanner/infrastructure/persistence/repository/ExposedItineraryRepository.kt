@@ -1,9 +1,13 @@
 package com.travelplanner.infrastructure.persistence.repository
 
 import com.travelplanner.domain.model.ItineraryPoint
+import com.travelplanner.domain.model.ItineraryPointComment
+import com.travelplanner.domain.model.ItineraryPointLink
 import com.travelplanner.domain.model.ItineraryPointStatus
 import com.travelplanner.domain.repository.ItineraryRepository
 import com.travelplanner.infrastructure.persistence.DatabaseFactory.dbQuery
+import com.travelplanner.infrastructure.persistence.tables.ItineraryPointCommentsTable
+import com.travelplanner.infrastructure.persistence.tables.ItineraryPointLinksTable
 import com.travelplanner.infrastructure.persistence.tables.ItineraryPointParticipantsTable
 import com.travelplanner.infrastructure.persistence.tables.ItineraryPointsTable
 import org.jetbrains.exposed.sql.*
@@ -47,6 +51,7 @@ class ExposedItineraryRepository : ItineraryRepository {
             it[description] = point.description
             it[subtitle] = point.subtitle
             it[type] = point.type
+            it[category] = point.category
             it[date] = point.date
             it[dayIndex] = point.dayIndex
             it[startTime] = point.startTime
@@ -77,6 +82,7 @@ class ExposedItineraryRepository : ItineraryRepository {
             it[description] = point.description
             it[subtitle] = point.subtitle
             it[type] = point.type
+            it[category] = point.category
             it[date] = point.date
             it[dayIndex] = point.dayIndex
             it[startTime] = point.startTime
@@ -126,6 +132,86 @@ class ExposedItineraryRepository : ItineraryRepository {
         rows.map { it.toItineraryPoint(participantsByPoint[it[ItineraryPointsTable.id]].orEmpty()) }
     }
 
+    override suspend fun findLinks(pointId: UUID): List<ItineraryPointLink> = dbQuery {
+        ItineraryPointLinksTable.selectAll()
+            .where { ItineraryPointLinksTable.pointId eq pointId }
+            .orderBy(ItineraryPointLinksTable.sortOrder to SortOrder.ASC, ItineraryPointLinksTable.createdAt to SortOrder.ASC)
+            .map { it.toLink() }
+    }
+
+    override suspend fun findLink(linkId: UUID, pointId: UUID): ItineraryPointLink? = dbQuery {
+        ItineraryPointLinksTable.selectAll()
+            .where { (ItineraryPointLinksTable.id eq linkId) and (ItineraryPointLinksTable.pointId eq pointId) }
+            .singleOrNull()
+            ?.toLink()
+    }
+
+    override suspend fun addLink(link: ItineraryPointLink): ItineraryPointLink = dbQuery {
+        ItineraryPointLinksTable.insert {
+            it[id] = link.id
+            it[pointId] = link.pointId
+            it[title] = link.title
+            it[url] = link.url
+            it[sortOrder] = link.sortOrder
+            it[createdAt] = link.createdAt
+        }
+        link
+    }
+
+    override suspend fun deleteLink(linkId: UUID, pointId: UUID): Boolean = dbQuery {
+        ItineraryPointLinksTable.deleteWhere {
+            (ItineraryPointLinksTable.id eq linkId) and (ItineraryPointLinksTable.pointId eq pointId)
+        } > 0
+    }
+
+    override suspend fun nextLinkSortOrder(pointId: UUID): Int = dbQuery {
+        val maxOrder = ItineraryPointLinksTable.sortOrder.max()
+        ItineraryPointLinksTable
+            .select(maxOrder)
+            .where { ItineraryPointLinksTable.pointId eq pointId }
+            .singleOrNull()
+            ?.get(maxOrder)
+            ?.let { it + 1 }
+            ?: 0
+    }
+
+    override suspend fun findComments(pointId: UUID, limit: Int, offset: Int): List<ItineraryPointComment> = dbQuery {
+        ItineraryPointCommentsTable.selectAll()
+            .where { ItineraryPointCommentsTable.pointId eq pointId }
+            .orderBy(ItineraryPointCommentsTable.createdAt, SortOrder.DESC)
+            .limit(limit)
+            .offset(offset.toLong())
+            .map { it.toComment() }
+    }
+
+    override suspend fun addComment(comment: ItineraryPointComment): ItineraryPointComment = dbQuery {
+        ItineraryPointCommentsTable.insert {
+            it[id] = comment.id
+            it[pointId] = comment.pointId
+            it[authorUserId] = comment.authorUserId
+            it[text] = comment.text
+            it[createdAt] = comment.createdAt
+        }
+        comment
+    }
+
+    private fun ResultRow.toLink() = ItineraryPointLink(
+        id = this[ItineraryPointLinksTable.id],
+        pointId = this[ItineraryPointLinksTable.pointId],
+        title = this[ItineraryPointLinksTable.title],
+        url = this[ItineraryPointLinksTable.url],
+        sortOrder = this[ItineraryPointLinksTable.sortOrder],
+        createdAt = this[ItineraryPointLinksTable.createdAt],
+    )
+
+    private fun ResultRow.toComment() = ItineraryPointComment(
+        id = this[ItineraryPointCommentsTable.id],
+        pointId = this[ItineraryPointCommentsTable.pointId],
+        authorUserId = this[ItineraryPointCommentsTable.authorUserId],
+        text = this[ItineraryPointCommentsTable.text],
+        createdAt = this[ItineraryPointCommentsTable.createdAt],
+    )
+
     private fun loadParticipants(pointIds: List<UUID>): Map<UUID, List<UUID>> {
         if (pointIds.isEmpty()) return emptyMap()
         return ItineraryPointParticipantsTable
@@ -151,6 +237,7 @@ class ExposedItineraryRepository : ItineraryRepository {
         description = this[ItineraryPointsTable.description],
         subtitle = this[ItineraryPointsTable.subtitle],
         type = this[ItineraryPointsTable.type],
+        category = this[ItineraryPointsTable.category],
         date = this[ItineraryPointsTable.date],
         dayIndex = this[ItineraryPointsTable.dayIndex],
         startTime = this[ItineraryPointsTable.startTime],

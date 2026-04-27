@@ -50,6 +50,7 @@ data class TripResponse(
     val totalBudget: String,
     val destination: String,
     val imageUrl: String? = null,
+    val joinCode: String = "",
     val status: String,
     val createdBy: String,
     val createdAt: String,
@@ -102,6 +103,7 @@ data class ItineraryPointResponse(
     val description: String? = null,
     val subtitle: String? = null,
     val type: String? = null,
+    val category: String? = null,
     val date: String? = null,
     val dayIndex: Int,
     val startTime: String? = null,
@@ -120,6 +122,74 @@ data class ItineraryPointResponse(
     val updatedAt: String,
     val version: Long,
     val deletedAt: String? = null
+)
+
+@Serializable
+data class PointLinkResponse(
+    val id: String,
+    val pointId: String,
+    val title: String,
+    val url: String,
+    val sortOrder: Int,
+    val createdAt: String,
+)
+
+@Serializable
+data class PointCommentResponse(
+    val id: String,
+    val pointId: String,
+    val authorUserId: String,
+    val authorDisplayName: String,
+    val text: String,
+    val createdAt: String,
+)
+
+// ──────────────────────────────────────────────
+// Checklist
+// ──────────────────────────────────────────────
+
+@Serializable
+data class ChecklistItemResponse(
+    val id: String,
+    val tripId: String,
+    val title: String,
+    val isGroup: Boolean,
+    val ownerUserId: String,
+    val completedBy: List<String>,
+    val createdAt: String,
+    val updatedAt: String,
+)
+
+// ──────────────────────────────────────────────
+// History
+// ──────────────────────────────────────────────
+
+@Serializable
+data class HistoryEntryResponse(
+    val id: String,
+    val tripId: String,
+    val userId: String,
+    val actionType: String,
+    val entityType: String,
+    val entityId: String,
+    val details: String,
+    val timestamp: Long,
+)
+
+// ──────────────────────────────────────────────
+// Join by code
+// ──────────────────────────────────────────────
+
+@Serializable
+data class JoinRequestUserResponse(
+    val userId: String,
+    val displayName: String,
+    val email: String,
+)
+
+@Serializable
+data class RegenerateCodeResponse(
+    val newCode: String,
 )
 
 // ──────────────────────────────────────────────
@@ -143,7 +213,19 @@ data class ExpenseResponse(
     val createdAt: String,
     val updatedAt: String,
     val version: Long,
-    val deletedAt: String? = null
+    val deletedAt: String? = null,
+    val pendingUpdate: ExpensePendingUpdateResponse? = null,
+)
+
+@Serializable
+data class ExpensePendingUpdateResponse(
+    val expenseId: String,
+    val proposedByUserId: String,
+    val proposedAt: String,
+    val baseVersion: Long,
+    val payload: String,
+
+    val baseSnapshot: String? = null,
 )
 
 @Serializable
@@ -193,6 +275,7 @@ data class AttachmentResponse(
     val id: String,
     val tripId: String,
     val expenseId: String? = null,
+    val pointId: String? = null,
     val uploadedBy: String,
     val fileName: String,
     val fileSize: Long,
@@ -225,7 +308,12 @@ data class SnapshotResponse(
     val itineraryPoints: List<ItineraryPointResponse>,
     val expenses: List<ExpenseResponse>,
     val attachments: List<AttachmentResponse>,
-    val cursor: String
+    val checklistItems: List<ChecklistItemResponse> = emptyList(),
+    val pendingJoinRequests: List<JoinRequestUserResponse> = emptyList(),
+    val historyEntries: List<HistoryEntryResponse> = emptyList(),
+    val pointLinks: List<PointLinkResponse> = emptyList(),
+    val pointComments: List<PointCommentResponse> = emptyList(),
+    val cursor: String,
 )
 
 @Serializable
@@ -235,7 +323,12 @@ data class DeltaResponse(
     val itineraryPoints: List<ItineraryPointResponse>,
     val expenses: List<ExpenseResponse>,
     val attachments: List<AttachmentResponse>,
-    val cursor: String
+    val checklistItems: List<ChecklistItemResponse> = emptyList(),
+    val pendingJoinRequests: List<JoinRequestUserResponse> = emptyList(),
+    val historyEntries: List<HistoryEntryResponse> = emptyList(),
+    val pointLinks: List<PointLinkResponse> = emptyList(),
+    val pointComments: List<PointCommentResponse> = emptyList(),
+    val cursor: String,
 )
 
 // ──────────────────────────────────────────────

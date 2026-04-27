@@ -15,6 +15,7 @@ data class Trip(
     val totalBudget: BigDecimal = BigDecimal.ZERO,
     val destination: String = "",
     val imageUrl: String? = null,
+    val joinCode: String = "",
     val status: TripStatus = TripStatus.ACTIVE,
     val createdBy: UUID,
     val createdAt: Instant,

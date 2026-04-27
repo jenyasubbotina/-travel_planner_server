@@ -8,4 +8,5 @@ interface DomainEventRepository {
     suspend fun findUnprocessed(limit: Int = 50): List<DomainEvent>
     suspend fun markProcessed(id: UUID)
     suspend fun incrementRetry(id: UUID)
+    suspend fun findByAggregateId(aggregateId: UUID, limit: Int, offset: Int): List<DomainEvent>
 }

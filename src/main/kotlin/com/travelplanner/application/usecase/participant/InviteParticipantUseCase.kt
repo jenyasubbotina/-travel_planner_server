@@ -1,5 +1,6 @@
 package com.travelplanner.application.usecase.participant
 
+import com.travelplanner.domain.event.HistoryPayload
 import com.travelplanner.domain.exception.DomainException
 import com.travelplanner.domain.model.DomainEvent
 import com.travelplanner.domain.model.InvitationStatus
@@ -89,16 +90,18 @@ class InviteParticipantUseCase(
                 eventType = "INVITATION_CREATED",
                 aggregateType = "TRIP",
                 aggregateId = input.tripId,
-                payload = buildJsonObject {
-                    put("actorUserId", input.inviterUserId.toString())
-                    put("invitationId", created.id.toString())
-                    put("tripId", input.tripId.toString())
-                    put("tripTitle", trip.title)
-                    put("email", normalizedEmail)
-                    if (existingUser != null) {
-                        put("inviteeUserId", existingUser.id.toString())
-                    }
-                }.toString(),
+                payload = HistoryPayload.build(
+                    actorUserId = input.inviterUserId,
+                    entityType = HistoryPayload.EntityType.PARTICIPANT,
+                    entityId = created.id,
+                    actionType = HistoryPayload.ActionType.INVITE,
+                    context = buildJsonObject {
+                        put("email", normalizedEmail)
+                        put("role", input.role.name)
+                        put("tripTitle", trip.title)
+                        existingUser?.let { put("inviteeUserId", it.id.toString()) }
+                    },
+                ),
                 createdAt = now
             )
         )

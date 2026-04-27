@@ -9,6 +9,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.slf4j.LoggerFactory
 import java.util.UUID
@@ -86,11 +87,13 @@ class OutboxProcessor(
             "INVITATION_CREATED" -> {
                 val title = "Trip Invitation"
                 val body = "You've been invited to a trip"
-                payload["invitationId"]?.jsonPrimitive?.content?.let { data["invitationId"] = it }
-                payload["tripId"]?.jsonPrimitive?.content?.let { data["tripId"] = it }
-                payload["tripTitle"]?.jsonPrimitive?.content?.let { data["tripTitle"] = it }
+                val context = payload["context"]?.jsonObject
 
-                val inviteeUserId = payload["inviteeUserId"]?.jsonPrimitive?.content?.toUuidOrNull()
+                payload["entityId"]?.jsonPrimitive?.content?.let { data["invitationId"] = it }
+                data["tripId"] = event.aggregateId.toString()
+                context?.get("tripTitle")?.jsonPrimitive?.content?.let { data["tripTitle"] = it }
+
+                val inviteeUserId = context?.get("inviteeUserId")?.jsonPrimitive?.content?.toUuidOrNull()
                 if (inviteeUserId != null) {
                     fcmNotificationService.notifyUser(
                         userId = inviteeUserId,
@@ -111,61 +114,105 @@ class OutboxProcessor(
         val title: String
         val body: String
 
+        // HistoryPayload.build nests fields inside "entity" / "context" / "new" / "old".
+        // Top-level fields are limited to actorUserId, entityType, entityId, actionType, schemaVersion.
+        val entity = payload["entity"]?.jsonObject
+        val context = payload["context"]?.jsonObject
+        val new = payload["new"]?.jsonObject
+        val old = payload["old"]?.jsonObject
+
         when (event.eventType) {
             "TRIP_CREATED" -> {
                 title = "New Trip"
-                body = "A new trip has been created: ${payload["tripTitle"]?.jsonPrimitive?.content ?: "Untitled"}"
+                val tripTitle = entity?.get("title")?.jsonPrimitive?.content ?: "Untitled"
+                body = "A new trip has been created: $tripTitle"
             }
 
             "TRIP_UPDATED" -> {
                 title = "Trip Updated"
-                body = "Trip \"${payload["tripTitle"]?.jsonPrimitive?.content ?: ""}\" has been updated"
+                // diff only includes title when it actually changed; fall back to old, then a generic message.
+                val tripTitle = new?.get("title")?.jsonPrimitive?.content
+                    ?: old?.get("title")?.jsonPrimitive?.content
+                body = if (!tripTitle.isNullOrBlank()) {
+                    "Trip \"$tripTitle\" has been updated"
+                } else {
+                    "Trip has been updated"
+                }
             }
 
             "PARTICIPANT_ADDED" -> {
                 title = "New Participant"
-                body = "${payload["participantName"]?.jsonPrimitive?.content ?: "Someone"} joined the trip"
+                val name = context?.get("participantName")?.jsonPrimitive?.content ?: "Someone"
+                body = "$name joined the trip"
             }
 
             "PARTICIPANT_REMOVED" -> {
                 title = "Participant Left"
-                body = "${payload["participantName"]?.jsonPrimitive?.content ?: "Someone"} left the trip"
+                val name = context?.get("participantName")?.jsonPrimitive?.content ?: "Someone"
+                body = "$name left the trip"
             }
 
             "PARTICIPANT_UPDATED" -> {
                 title = "Role Updated"
-                val name = payload["participantName"]?.jsonPrimitive?.content ?: "Someone"
-                val role = payload["newRole"]?.jsonPrimitive?.content ?: "updated"
+                val name = context?.get("participantName")?.jsonPrimitive?.content ?: "Someone"
+                val role = context?.get("newRole")?.jsonPrimitive?.content ?: "updated"
                 body = "$name is now $role"
             }
 
             "EXPENSE_CREATED" -> {
                 title = "New Expense"
-                body = "New expense added: ${payload["description"]?.jsonPrimitive?.content ?: ""}"
+                val expenseTitle = entity?.get("title")?.jsonPrimitive?.content ?: ""
+                body = "New expense added: $expenseTitle"
             }
 
             "EXPENSE_UPDATED" -> {
                 title = "Expense Updated"
-                body = "Expense updated: ${payload["description"]?.jsonPrimitive?.content ?: ""}"
+                val expenseTitle = new?.get("title")?.jsonPrimitive?.content
+                    ?: old?.get("title")?.jsonPrimitive?.content
+                    ?: ""
+                body = "Expense updated: $expenseTitle"
             }
 
-            "ITINERARY_UPDATED" -> {
+            "ITINERARY_POINT_CREATED" -> {
                 title = "Itinerary Updated"
-                body = "The trip itinerary has been modified"
+                val pointTitle = entity?.get("title")?.jsonPrimitive?.content ?: "a new stop"
+                body = "Added: $pointTitle"
+            }
+
+            "ITINERARY_POINT_UPDATED" -> {
+                title = "Itinerary Updated"
+                val pointTitle = new?.get("title")?.jsonPrimitive?.content
+                    ?: old?.get("title")?.jsonPrimitive?.content
+                body = if (pointTitle != null) {
+                    "Updated: $pointTitle"
+                } else {
+                    "An itinerary stop was updated"
+                }
+            }
+
+            "ITINERARY_POINT_DELETED" -> {
+                title = "Itinerary Updated"
+                val pointTitle = entity?.get("title")?.jsonPrimitive?.content ?: "a stop"
+                body = "Removed: $pointTitle"
+            }
+
+            "ITINERARY_REORDERED" -> {
+                title = "Itinerary Updated"
+                body = "The trip itinerary has been reordered"
             }
 
             "ATTACHMENT_CREATED" -> {
                 title = "New Attachment"
-                val name = payload["fileName"]?.jsonPrimitive?.content ?: "a file"
+                val name = entity?.get("fileName")?.jsonPrimitive?.content ?: "a file"
                 body = "New file uploaded: $name"
-                payload["attachmentId"]?.jsonPrimitive?.content?.let { data["attachmentId"] = it }
+                payload["entityId"]?.jsonPrimitive?.content?.let { data["attachmentId"] = it }
             }
 
             "ATTACHMENT_DELETED" -> {
                 title = "Attachment Removed"
-                val name = payload["fileName"]?.jsonPrimitive?.content ?: "a file"
+                val name = entity?.get("fileName")?.jsonPrimitive?.content ?: "a file"
                 body = "File removed: $name"
-                payload["attachmentId"]?.jsonPrimitive?.content?.let { data["attachmentId"] = it }
+                payload["entityId"]?.jsonPrimitive?.content?.let { data["attachmentId"] = it }
             }
 
             else -> {

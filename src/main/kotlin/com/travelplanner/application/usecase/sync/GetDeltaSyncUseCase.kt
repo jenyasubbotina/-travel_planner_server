@@ -19,6 +19,6 @@ class GetDeltaSyncUseCase(
             throw DomainException.AccessDenied("User is not a participant of this trip")
         }
 
-        return syncRepository.getDelta(input.tripId, input.cursor)
+        return syncRepository.getDelta(input.tripId, input.userId, input.cursor)
     }
 }

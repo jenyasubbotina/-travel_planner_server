@@ -7,6 +7,17 @@ data class SyncCursor(
     val entityVersions: Map<String, Long> = emptyMap()
 )
 
+data class JoinRequestWithUser(
+    val request: TripJoinRequest,
+    val displayName: String,
+    val email: String,
+)
+
+data class ItineraryPointCommentWithAuthor(
+    val comment: ItineraryPointComment,
+    val authorDisplayName: String,
+)
+
 data class SyncDelta(
     val trips: List<Trip> = emptyList(),
     val participants: List<TripParticipant> = emptyList(),
@@ -14,7 +25,12 @@ data class SyncDelta(
     val expenses: List<Expense> = emptyList(),
     val expenseSplits: List<ExpenseSplit> = emptyList(),
     val attachments: List<Attachment> = emptyList(),
-    val cursor: SyncCursor
+    val checklistItems: List<ChecklistItem> = emptyList(),
+    val pendingJoinRequests: List<JoinRequestWithUser> = emptyList(),
+    val historyEntries: List<DomainEvent> = emptyList(),
+    val pointLinks: List<ItineraryPointLink> = emptyList(),
+    val pointComments: List<ItineraryPointCommentWithAuthor> = emptyList(),
+    val cursor: SyncCursor,
 )
 
 data class TripSnapshot(
@@ -24,5 +40,10 @@ data class TripSnapshot(
     val expenses: List<Expense>,
     val expenseSplits: List<ExpenseSplit>,
     val attachments: List<Attachment>,
-    val cursor: SyncCursor
+    val checklistItems: List<ChecklistItem> = emptyList(),
+    val pendingJoinRequests: List<JoinRequestWithUser> = emptyList(),
+    val historyEntries: List<DomainEvent> = emptyList(),
+    val pointLinks: List<ItineraryPointLink> = emptyList(),
+    val pointComments: List<ItineraryPointCommentWithAuthor> = emptyList(),
+    val cursor: SyncCursor,
 )

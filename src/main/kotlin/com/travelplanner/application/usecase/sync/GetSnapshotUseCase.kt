@@ -16,7 +16,7 @@ class GetSnapshotUseCase(
             throw DomainException.AccessDenied("User is not a participant of this trip")
         }
 
-        return syncRepository.getTripSnapshot(tripId)
+        return syncRepository.getTripSnapshot(tripId, userId)
             ?: throw DomainException.TripNotFound(tripId)
     }
 }

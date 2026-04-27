@@ -1,5 +1,6 @@
 package com.travelplanner.application.usecase.trip
 
+import com.travelplanner.domain.event.HistoryPayload
 import com.travelplanner.domain.model.DomainEvent
 import com.travelplanner.domain.model.Trip
 import com.travelplanner.domain.model.TripParticipant
@@ -10,8 +11,7 @@ import com.travelplanner.domain.repository.ParticipantRepository
 import com.travelplanner.domain.repository.TransactionRunner
 import com.travelplanner.domain.repository.TripRepository
 import com.travelplanner.domain.validation.TripValidator
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
+import com.travelplanner.infrastructure.util.JoinCodeGenerator
 import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
@@ -42,6 +42,7 @@ class CreateTripUseCase(
         TripValidator.validateCurrency(input.baseCurrency)
 
         val now = Instant.now()
+        val joinCode = generateUniqueJoinCode()
         val trip = Trip(
             id = UUID.randomUUID(),
             title = input.title.trim(),
@@ -52,6 +53,7 @@ class CreateTripUseCase(
             totalBudget = input.totalBudget,
             destination = input.destination.trim(),
             imageUrl = input.imageUrl?.trim(),
+            joinCode = joinCode,
             status = TripStatus.ACTIVE,
             createdBy = input.userId,
             createdAt = now,
@@ -75,14 +77,25 @@ class CreateTripUseCase(
                 eventType = "TRIP_CREATED",
                 aggregateType = "TRIP",
                 aggregateId = created.id,
-                payload = buildJsonObject {
-                    put("actorUserId", input.userId.toString())
-                    put("tripTitle", created.title)
-                }.toString(),
+                payload = HistoryPayload.build(
+                    actorUserId = input.userId,
+                    entityType = HistoryPayload.EntityType.TRIP,
+                    entityId = created.id,
+                    actionType = HistoryPayload.ActionType.CREATE,
+                    entity = HistoryPayload.tripSnapshot(created),
+                ),
                 createdAt = now
             )
         )
 
         created
+    }
+
+    private suspend fun generateUniqueJoinCode(): String {
+        repeat(5) {
+            val candidate = JoinCodeGenerator.generate()
+            if (tripRepository.findByJoinCode(candidate) == null) return candidate
+        }
+        return JoinCodeGenerator.generate()
     }
 }

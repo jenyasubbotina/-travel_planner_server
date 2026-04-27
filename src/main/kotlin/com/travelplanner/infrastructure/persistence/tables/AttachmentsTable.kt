@@ -14,6 +14,10 @@ object AttachmentsTable : Table("attachments") {
         ExpensesTable.id,
         onDelete = ReferenceOption.SET_NULL
     ).nullable()
+    val pointId = uuid("point_id").references(
+        ItineraryPointsTable.id,
+        onDelete = ReferenceOption.CASCADE
+    ).nullable()
     val uploadedBy = uuid("uploaded_by").references(
         UsersTable.id,
         onDelete = ReferenceOption.CASCADE

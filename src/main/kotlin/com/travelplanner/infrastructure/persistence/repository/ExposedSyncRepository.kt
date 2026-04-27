@@ -6,12 +6,11 @@ import com.travelplanner.infrastructure.persistence.DatabaseFactory.dbQuery
 import com.travelplanner.infrastructure.persistence.tables.*
 import org.jetbrains.exposed.sql.*
 import java.time.Instant
-import java.time.LocalTime
 import java.util.UUID
 
 class ExposedSyncRepository : SyncRepository {
 
-    override suspend fun getTripSnapshot(tripId: UUID): TripSnapshot? = dbQuery {
+    override suspend fun getTripSnapshot(tripId: UUID, userId: UUID): TripSnapshot? = dbQuery {
         val trip = TripsTable.selectAll()
             .where { (TripsTable.id eq tripId) and TripsTable.deletedAt.isNull() }
             .singleOrNull()
@@ -29,9 +28,8 @@ class ExposedSyncRepository : SyncRepository {
             }
             .orderBy(ItineraryPointsTable.sortOrder)
             .toList()
-        val itineraryParticipantIds = loadItineraryParticipants(
-            itineraryRows.map { it[ItineraryPointsTable.id] }
-        )
+        val pointIds = itineraryRows.map { it[ItineraryPointsTable.id] }
+        val itineraryParticipantIds = loadItineraryParticipants(pointIds)
         val itineraryPoints = itineraryRows.map {
             it.toItineraryPoint(itineraryParticipantIds[it[ItineraryPointsTable.id]].orEmpty())
         }
@@ -57,6 +55,12 @@ class ExposedSyncRepository : SyncRepository {
             }
             .map { it.toAttachment() }
 
+        val checklistItems = loadChecklistVisibleTo(tripId, userId, after = null)
+        val pendingJoinRequests = loadPendingJoinRequestsIfOwner(tripId, userId, after = null)
+        val historyEntries = loadHistoryEntries(tripId, after = null, limit = 200)
+        val pointLinks = loadPointLinks(tripId, after = null)
+        val pointComments = loadPointComments(tripId, after = null)
+
         val now = Instant.now()
         TripSnapshot(
             trip = trip,
@@ -65,11 +69,16 @@ class ExposedSyncRepository : SyncRepository {
             expenses = expenses,
             expenseSplits = expenseSplits,
             attachments = attachments,
+            checklistItems = checklistItems,
+            pendingJoinRequests = pendingJoinRequests,
+            historyEntries = historyEntries,
+            pointLinks = pointLinks,
+            pointComments = pointComments,
             cursor = SyncCursor(timestamp = now)
         )
     }
 
-    override suspend fun getDelta(tripId: UUID, after: Instant): SyncDelta = dbQuery {
+    override suspend fun getDelta(tripId: UUID, userId: UUID, after: Instant): SyncDelta = dbQuery {
         val trips = TripsTable.selectAll()
             .where {
                 (TripsTable.id eq tripId) and (TripsTable.updatedAt greater after)
@@ -122,6 +131,12 @@ class ExposedSyncRepository : SyncRepository {
             }
             .map { it.toAttachment() }
 
+        val checklistItems = loadChecklistVisibleTo(tripId, userId, after = after)
+        val pendingJoinRequests = loadPendingJoinRequestsIfOwner(tripId, userId, after = after)
+        val historyEntries = loadHistoryEntries(tripId, after = after, limit = null)
+        val pointLinks = loadPointLinks(tripId, after = after)
+        val pointComments = loadPointComments(tripId, after = after)
+
         val now = Instant.now()
         SyncDelta(
             trips = trips,
@@ -130,8 +145,184 @@ class ExposedSyncRepository : SyncRepository {
             expenses = expenses,
             expenseSplits = expenseSplits,
             attachments = attachments,
+            checklistItems = checklistItems,
+            pendingJoinRequests = pendingJoinRequests,
+            historyEntries = historyEntries,
+            pointLinks = pointLinks,
+            pointComments = pointComments,
             cursor = SyncCursor(timestamp = now)
         )
+    }
+
+    // --- New entity loaders ---
+
+    private fun loadChecklistVisibleTo(tripId: UUID, userId: UUID, after: Instant?): List<ChecklistItem> {
+        val rows = TripChecklistItemsTable.selectAll()
+            .where {
+                val base = (TripChecklistItemsTable.tripId eq tripId) and
+                        (
+                                (TripChecklistItemsTable.isGroup eq true) or
+                                        (TripChecklistItemsTable.ownerUserId eq userId)
+                                )
+                if (after != null) {
+                    base and (TripChecklistItemsTable.updatedAt greater after)
+                } else {
+                    base
+                }
+            }
+            .toList()
+
+        if (rows.isEmpty()) return emptyList()
+        val itemIds = rows.map { it[TripChecklistItemsTable.id] }
+        val completionsByItem = TripChecklistCompletionsTable
+            .selectAll()
+            .where { TripChecklistCompletionsTable.itemId inList itemIds }
+            .groupBy(
+                { it[TripChecklistCompletionsTable.itemId] },
+                { it[TripChecklistCompletionsTable.userId] }
+            )
+        return rows.map { row ->
+            ChecklistItem(
+                id = row[TripChecklistItemsTable.id],
+                tripId = row[TripChecklistItemsTable.tripId],
+                title = row[TripChecklistItemsTable.title],
+                isGroup = row[TripChecklistItemsTable.isGroup],
+                ownerUserId = row[TripChecklistItemsTable.ownerUserId],
+                completedBy = completionsByItem[row[TripChecklistItemsTable.id]].orEmpty(),
+                createdAt = row[TripChecklistItemsTable.createdAt],
+                updatedAt = row[TripChecklistItemsTable.updatedAt],
+            )
+        }
+    }
+
+    private fun loadPendingJoinRequestsIfOwner(
+        tripId: UUID,
+        userId: UUID,
+        after: Instant?,
+    ): List<JoinRequestWithUser> {
+        val isOwner = TripParticipantsTable
+            .selectAll()
+            .where {
+                (TripParticipantsTable.tripId eq tripId) and
+                        (TripParticipantsTable.userId eq userId) and
+                        (TripParticipantsTable.role eq TripRole.OWNER.name)
+            }
+            .empty()
+            .not()
+        if (!isOwner) return emptyList()
+
+        val joined = TripJoinRequestsTable
+            .innerJoin(UsersTable, { TripJoinRequestsTable.requesterUserId }, { UsersTable.id })
+            .selectAll()
+            .where {
+                val base = (TripJoinRequestsTable.tripId eq tripId) and
+                        (TripJoinRequestsTable.status eq JoinRequestStatus.PENDING.name)
+                if (after != null) {
+                    base and (TripJoinRequestsTable.createdAt greater after)
+                } else {
+                    base
+                }
+            }
+            .orderBy(TripJoinRequestsTable.createdAt, SortOrder.DESC)
+
+        return joined.map { row ->
+            val request = TripJoinRequest(
+                id = row[TripJoinRequestsTable.id],
+                tripId = row[TripJoinRequestsTable.tripId],
+                requesterUserId = row[TripJoinRequestsTable.requesterUserId],
+                status = JoinRequestStatus.valueOf(row[TripJoinRequestsTable.status]),
+                createdAt = row[TripJoinRequestsTable.createdAt],
+                resolvedAt = row[TripJoinRequestsTable.resolvedAt],
+                resolvedBy = row[TripJoinRequestsTable.resolvedBy],
+            )
+            JoinRequestWithUser(
+                request = request,
+                displayName = row[UsersTable.displayName],
+                email = row[UsersTable.email],
+            )
+        }
+    }
+
+    private fun loadHistoryEntries(tripId: UUID, after: Instant?, limit: Int?): List<DomainEvent> {
+        val baseQuery = DomainEventsTable.selectAll()
+            .where {
+                val base = DomainEventsTable.aggregateId eq tripId
+                if (after != null) {
+                    base and (DomainEventsTable.createdAt greater after)
+                } else {
+                    base
+                }
+            }
+            .orderBy(DomainEventsTable.createdAt, SortOrder.DESC)
+        val query = if (limit != null) baseQuery.limit(limit) else baseQuery
+        return query.map { row ->
+            DomainEvent(
+                id = row[DomainEventsTable.id],
+                eventType = row[DomainEventsTable.eventType],
+                aggregateType = row[DomainEventsTable.aggregateType],
+                aggregateId = row[DomainEventsTable.aggregateId],
+                payload = row[DomainEventsTable.payload],
+                createdAt = row[DomainEventsTable.createdAt],
+                processedAt = row[DomainEventsTable.processedAt],
+                retryCount = row[DomainEventsTable.retryCount],
+            )
+        }
+    }
+
+    private fun loadPointLinks(tripId: UUID, after: Instant?): List<ItineraryPointLink> {
+        val query = ItineraryPointLinksTable
+            .innerJoin(ItineraryPointsTable, { ItineraryPointLinksTable.pointId }, { ItineraryPointsTable.id })
+            .selectAll()
+            .where {
+                val base = (ItineraryPointsTable.tripId eq tripId) and
+                        ItineraryPointsTable.deletedAt.isNull()
+                if (after != null) {
+                    base and (ItineraryPointLinksTable.createdAt greater after)
+                } else {
+                    base
+                }
+            }
+            .orderBy(ItineraryPointLinksTable.sortOrder to SortOrder.ASC, ItineraryPointLinksTable.createdAt to SortOrder.ASC)
+        return query.map { row ->
+            ItineraryPointLink(
+                id = row[ItineraryPointLinksTable.id],
+                pointId = row[ItineraryPointLinksTable.pointId],
+                title = row[ItineraryPointLinksTable.title],
+                url = row[ItineraryPointLinksTable.url],
+                sortOrder = row[ItineraryPointLinksTable.sortOrder],
+                createdAt = row[ItineraryPointLinksTable.createdAt],
+            )
+        }
+    }
+
+    private fun loadPointComments(tripId: UUID, after: Instant?): List<ItineraryPointCommentWithAuthor> {
+        val query = ItineraryPointCommentsTable
+            .innerJoin(ItineraryPointsTable, { ItineraryPointCommentsTable.pointId }, { ItineraryPointsTable.id })
+            .innerJoin(UsersTable, { ItineraryPointCommentsTable.authorUserId }, { UsersTable.id })
+            .selectAll()
+            .where {
+                val base = (ItineraryPointsTable.tripId eq tripId) and
+                        ItineraryPointsTable.deletedAt.isNull()
+                if (after != null) {
+                    base and (ItineraryPointCommentsTable.createdAt greater after)
+                } else {
+                    base
+                }
+            }
+            .orderBy(ItineraryPointCommentsTable.createdAt, SortOrder.ASC)
+        return query.map { row ->
+            val comment = ItineraryPointComment(
+                id = row[ItineraryPointCommentsTable.id],
+                pointId = row[ItineraryPointCommentsTable.pointId],
+                authorUserId = row[ItineraryPointCommentsTable.authorUserId],
+                text = row[ItineraryPointCommentsTable.text],
+                createdAt = row[ItineraryPointCommentsTable.createdAt],
+            )
+            ItineraryPointCommentWithAuthor(
+                comment = comment,
+                authorDisplayName = row[UsersTable.displayName],
+            )
+        }
     }
 
     // --- Mapping helpers ---
@@ -146,6 +337,7 @@ class ExposedSyncRepository : SyncRepository {
         totalBudget = this[TripsTable.totalBudget],
         destination = this[TripsTable.destination],
         imageUrl = this[TripsTable.imageUrl],
+        joinCode = this[TripsTable.joinCode],
         status = TripStatus.valueOf(this[TripsTable.status]),
         createdBy = this[TripsTable.createdBy],
         createdAt = this[TripsTable.createdAt],
@@ -179,6 +371,7 @@ class ExposedSyncRepository : SyncRepository {
         description = this[ItineraryPointsTable.description],
         subtitle = this[ItineraryPointsTable.subtitle],
         type = this[ItineraryPointsTable.type],
+        category = this[ItineraryPointsTable.category],
         date = this[ItineraryPointsTable.date],
         dayIndex = this[ItineraryPointsTable.dayIndex],
         startTime = this[ItineraryPointsTable.startTime],
@@ -231,6 +424,7 @@ class ExposedSyncRepository : SyncRepository {
         id = this[AttachmentsTable.id],
         tripId = this[AttachmentsTable.tripId],
         expenseId = this[AttachmentsTable.expenseId],
+        pointId = this[AttachmentsTable.pointId],
         uploadedBy = this[AttachmentsTable.uploadedBy],
         fileName = this[AttachmentsTable.fileName],
         fileSize = this[AttachmentsTable.fileSize],

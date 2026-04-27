@@ -74,6 +74,9 @@ fun Application.module() {
         analyticsRoutes()
         attachmentRoutes()
         syncRoutes()
+        checklistRoutes()
+        historyRoutes()
+        joinCodeRoutes()
 
         if (appConfig.admin.enabled) {
             adminRoutes(appConfig.admin, metricsRegistry)

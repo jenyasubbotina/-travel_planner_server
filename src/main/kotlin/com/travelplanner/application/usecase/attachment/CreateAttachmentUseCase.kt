@@ -1,14 +1,14 @@
 package com.travelplanner.application.usecase.attachment
 
+import com.travelplanner.domain.event.HistoryPayload
 import com.travelplanner.domain.exception.DomainException
 import com.travelplanner.domain.model.Attachment
 import com.travelplanner.domain.model.DomainEvent
 import com.travelplanner.domain.repository.AttachmentRepository
 import com.travelplanner.domain.repository.DomainEventRepository
 import com.travelplanner.domain.repository.ExpenseRepository
+import com.travelplanner.domain.repository.ItineraryRepository
 import com.travelplanner.domain.repository.ParticipantRepository
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
 import java.time.Instant
 import java.util.UUID
 
@@ -16,6 +16,7 @@ class CreateAttachmentUseCase(
     private val participantRepository: ParticipantRepository,
     private val attachmentRepository: AttachmentRepository,
     private val expenseRepository: ExpenseRepository,
+    private val itineraryRepository: ItineraryRepository,
     private val domainEventRepository: DomainEventRepository,
 ) {
 
@@ -23,6 +24,7 @@ class CreateAttachmentUseCase(
         val tripId: UUID,
         val userId: UUID,
         val expenseId: UUID? = null,
+        val pointId: UUID? = null,
         val fileName: String,
         val fileSize: Long,
         val mimeType: String,
@@ -42,6 +44,10 @@ class CreateAttachmentUseCase(
             throw DomainException.ValidationError("S3 key is required")
         }
 
+        if (input.expenseId != null && input.pointId != null) {
+            throw DomainException.ValidationError("Attachment cannot reference both expense and itinerary point")
+        }
+
         if (input.expenseId != null) {
             val expense = expenseRepository.findById(input.expenseId)
                 ?: throw DomainException.ExpenseNotFound(input.expenseId)
@@ -51,11 +57,20 @@ class CreateAttachmentUseCase(
             }
         }
 
+        if (input.pointId != null) {
+            val point = itineraryRepository.findById(input.pointId)
+                ?: throw DomainException.ItineraryPointNotFound(input.pointId)
+            if (point.tripId != input.tripId) {
+                throw DomainException.ItineraryPointNotFound(input.pointId)
+            }
+        }
+
         val now = Instant.now()
         val attachment = Attachment(
             id = UUID.randomUUID(),
             tripId = input.tripId,
             expenseId = input.expenseId,
+            pointId = input.pointId,
             uploadedBy = input.userId,
             fileName = input.fileName,
             fileSize = input.fileSize,
@@ -72,12 +87,13 @@ class CreateAttachmentUseCase(
                 eventType = "ATTACHMENT_CREATED",
                 aggregateType = "TRIP",
                 aggregateId = input.tripId,
-                payload = buildJsonObject {
-                    put("actorUserId", input.userId.toString())
-                    put("attachmentId", created.id.toString())
-                    put("fileName", created.fileName)
-                    if (input.expenseId != null) put("expenseId", input.expenseId.toString())
-                }.toString(),
+                payload = HistoryPayload.build(
+                    actorUserId = input.userId,
+                    entityType = HistoryPayload.EntityType.ATTACHMENT,
+                    entityId = created.id,
+                    actionType = HistoryPayload.ActionType.CREATE,
+                    entity = HistoryPayload.attachmentSnapshot(created),
+                ),
                 createdAt = now
             )
         )

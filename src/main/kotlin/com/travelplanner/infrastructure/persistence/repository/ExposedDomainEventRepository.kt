@@ -46,6 +46,15 @@ class ExposedDomainEventRepository : DomainEventRepository {
         }
     }
 
+    override suspend fun findByAggregateId(aggregateId: UUID, limit: Int, offset: Int): List<DomainEvent> = dbQuery {
+        DomainEventsTable.selectAll()
+            .where { DomainEventsTable.aggregateId eq aggregateId }
+            .orderBy(DomainEventsTable.createdAt, SortOrder.DESC)
+            .limit(limit)
+            .offset(offset.toLong())
+            .map { it.toDomainEvent() }
+    }
+
     // --- Mapping helper ---
 
     private fun ResultRow.toDomainEvent() = DomainEvent(
