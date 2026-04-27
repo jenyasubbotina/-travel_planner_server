@@ -6,16 +6,17 @@ logback = "1.4.14"
 exposed = "0.61.0"
 postgresql = "42.7.3"
 hikari = "5.1.0"
-flyway = "9.22.3"
+flyway = "10.15.0"
 jbcrypt = "0.4"
 lettuce = "6.3.2.RELEASE"
 awsSdkKotlin = "1.2.28"
 firebaseAdmin = "9.3.0"
 testcontainers = "1.20.1"
 junit = "5.10.3"
-junitPlatform = "1.10.3"
 mockk = "1.13.12"
 kotlinxDatetime = "0.6.0"
+embeddedPostgres = "2.0.7"
+embeddedPostgresBinaries = "16.2.0"
 micrometerPrometheus = "1.14.2"
 
 [libraries]
@@ -50,6 +51,7 @@ exposed-json = { module = "org.jetbrains.exposed:exposed-json", version.ref = "e
 postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
 hikari = { module = "com.zaxxer:HikariCP", version.ref = "hikari" }
 flyway-core = { module = "org.flywaydb:flyway-core", version.ref = "flyway" }
+flyway-postgresql = { module = "org.flywaydb:flyway-database-postgresql", version.ref = "flyway" }
 
 # Auth
 jbcrypt = { module = "org.mindrot:jbcrypt", version.ref = "jbcrypt" }
@@ -74,11 +76,12 @@ ktor-server-test-host = { module = "io.ktor:ktor-server-test-host", version.ref 
 ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
 kotlin-test-junit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
-junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junitPlatform" }
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
 testcontainers-postgresql = { module = "org.testcontainers:postgresql", version.ref = "testcontainers" }
 testcontainers-junit = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }
+embedded-postgres = { module = "io.zonky.test:embedded-postgres", version.ref = "embeddedPostgres" }
+embedded-postgres-binaries-bom = { module = "io.zonky.test.postgres:embedded-postgres-binaries-bom", version.ref = "embeddedPostgresBinaries" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

@@ -22,13 +22,19 @@ class ExposedSyncRepository : SyncRepository {
             .where { TripParticipantsTable.tripId eq tripId }
             .map { it.toTripParticipant() }
 
-        val itineraryPoints = ItineraryPointsTable.selectAll()
+        val itineraryRows = ItineraryPointsTable.selectAll()
             .where {
                 (ItineraryPointsTable.tripId eq tripId) and
-                    ItineraryPointsTable.deletedAt.isNull()
+                        ItineraryPointsTable.deletedAt.isNull()
             }
             .orderBy(ItineraryPointsTable.sortOrder)
-            .map { it.toItineraryPoint() }
+            .toList()
+        val itineraryParticipantIds = loadItineraryParticipants(
+            itineraryRows.map { it[ItineraryPointsTable.id] }
+        )
+        val itineraryPoints = itineraryRows.map {
+            it.toItineraryPoint(itineraryParticipantIds[it[ItineraryPointsTable.id]].orEmpty())
+        }
 
         val expenses = ExpensesTable.selectAll()
             .where {
@@ -73,21 +79,27 @@ class ExposedSyncRepository : SyncRepository {
         val participants = TripParticipantsTable.selectAll()
             .where {
                 (TripParticipantsTable.tripId eq tripId) and
-                    (TripParticipantsTable.joinedAt greater after)
+                        (TripParticipantsTable.joinedAt greater after)
             }
             .map { it.toTripParticipant() }
 
-        val itineraryPoints = ItineraryPointsTable.selectAll()
+        val itineraryRows = ItineraryPointsTable.selectAll()
             .where {
                 (ItineraryPointsTable.tripId eq tripId) and
-                    (ItineraryPointsTable.updatedAt greater after)
+                        (ItineraryPointsTable.updatedAt greater after)
             }
-            .map { it.toItineraryPoint() }
+            .toList()
+        val itineraryParticipantIds = loadItineraryParticipants(
+            itineraryRows.map { it[ItineraryPointsTable.id] }
+        )
+        val itineraryPoints = itineraryRows.map {
+            it.toItineraryPoint(itineraryParticipantIds[it[ItineraryPointsTable.id]].orEmpty())
+        }
 
         val expenses = ExpensesTable.selectAll()
             .where {
                 (ExpensesTable.tripId eq tripId) and
-                    (ExpensesTable.updatedAt greater after)
+                        (ExpensesTable.updatedAt greater after)
             }
             .map { it.toExpense() }
 
@@ -103,7 +115,10 @@ class ExposedSyncRepository : SyncRepository {
         val attachments = AttachmentsTable.selectAll()
             .where {
                 (AttachmentsTable.tripId eq tripId) and
-                    (AttachmentsTable.createdAt greater after)
+                        (
+                                (AttachmentsTable.createdAt greater after) or
+                                        (AttachmentsTable.deletedAt greater after)
+                                )
             }
             .map { it.toAttachment() }
 
@@ -128,6 +143,9 @@ class ExposedSyncRepository : SyncRepository {
         startDate = this[TripsTable.startDate],
         endDate = this[TripsTable.endDate],
         baseCurrency = this[TripsTable.baseCurrency],
+        totalBudget = this[TripsTable.totalBudget],
+        destination = this[TripsTable.destination],
+        imageUrl = this[TripsTable.imageUrl],
         status = TripStatus.valueOf(this[TripsTable.status]),
         createdBy = this[TripsTable.createdBy],
         createdAt = this[TripsTable.createdAt],
@@ -143,18 +161,37 @@ class ExposedSyncRepository : SyncRepository {
         joinedAt = this[TripParticipantsTable.joinedAt]
     )
 
-    private fun ResultRow.toItineraryPoint() = ItineraryPoint(
+    private fun loadItineraryParticipants(pointIds: List<UUID>): Map<UUID, List<UUID>> {
+        if (pointIds.isEmpty()) return emptyMap()
+        return ItineraryPointParticipantsTable
+            .selectAll()
+            .where { ItineraryPointParticipantsTable.pointId inList pointIds }
+            .groupBy(
+                { it[ItineraryPointParticipantsTable.pointId] },
+                { it[ItineraryPointParticipantsTable.userId] }
+            )
+    }
+
+    private fun ResultRow.toItineraryPoint(participantIds: List<UUID> = emptyList()) = ItineraryPoint(
         id = this[ItineraryPointsTable.id],
         tripId = this[ItineraryPointsTable.tripId],
         title = this[ItineraryPointsTable.title],
         description = this[ItineraryPointsTable.description],
+        subtitle = this[ItineraryPointsTable.subtitle],
         type = this[ItineraryPointsTable.type],
         date = this[ItineraryPointsTable.date],
+        dayIndex = this[ItineraryPointsTable.dayIndex],
         startTime = this[ItineraryPointsTable.startTime],
         endTime = this[ItineraryPointsTable.endTime],
+        duration = this[ItineraryPointsTable.duration],
         latitude = this[ItineraryPointsTable.latitude],
         longitude = this[ItineraryPointsTable.longitude],
         address = this[ItineraryPointsTable.address],
+        cost = this[ItineraryPointsTable.cost],
+        actualCost = this[ItineraryPointsTable.actualCost],
+        status = runCatching { ItineraryPointStatus.valueOf(this[ItineraryPointsTable.status]) }
+            .getOrDefault(ItineraryPointStatus.NONE),
+        participantIds = participantIds,
         sortOrder = this[ItineraryPointsTable.sortOrder],
         createdBy = this[ItineraryPointsTable.createdBy],
         createdAt = this[ItineraryPointsTable.createdAt],

@@ -30,6 +30,7 @@ import com.travelplanner.application.usecase.analytics.CalculateSettlementsUseCa
 import com.travelplanner.application.usecase.analytics.GetStatisticsUseCase
 import com.travelplanner.application.usecase.attachment.CreateAttachmentUseCase
 import com.travelplanner.application.usecase.attachment.DeleteAttachmentUseCase
+import com.travelplanner.application.usecase.attachment.RequestPresignedDownloadUseCase
 import com.travelplanner.application.usecase.attachment.RequestPresignedUploadUseCase
 import com.travelplanner.application.usecase.sync.GetDeltaSyncUseCase
 import com.travelplanner.application.usecase.sync.GetSnapshotUseCase
@@ -40,13 +41,16 @@ import com.travelplanner.domain.repository.IdempotencyRepository
 import com.travelplanner.domain.repository.ItineraryRepository
 import com.travelplanner.domain.repository.ParticipantRepository
 import com.travelplanner.domain.repository.SyncRepository
+import com.travelplanner.domain.repository.TransactionRunner
 import com.travelplanner.domain.repository.TripRepository
 import com.travelplanner.domain.repository.UserRepository
 import com.travelplanner.infrastructure.auth.JwtService
+import com.travelplanner.infrastructure.auth.RefreshTokenHasher
 import com.travelplanner.infrastructure.config.AppConfig
 import com.travelplanner.infrastructure.fcm.FcmClient
 import com.travelplanner.infrastructure.fcm.FcmNotificationService
 import com.travelplanner.infrastructure.fcm.OutboxProcessor
+import com.travelplanner.infrastructure.persistence.ExposedTransactionRunner
 import com.travelplanner.infrastructure.persistence.repository.ExposedAttachmentRepository
 import com.travelplanner.infrastructure.persistence.repository.ExposedDomainEventRepository
 import com.travelplanner.infrastructure.persistence.repository.ExposedExpenseRepository
@@ -68,6 +72,7 @@ val appModule = module {
     // Infrastructure — Auth
     // ──────────────────────────────────────────────
     single { JwtService(get<AppConfig>().jwt) }
+    single { RefreshTokenHasher(get<AppConfig>().jwt.secret) }
 
     // ──────────────────────────────────────────────
     // Infrastructure — Redis
@@ -79,7 +84,10 @@ val appModule = module {
     // Infrastructure — S3
     // ──────────────────────────────────────────────
     single { S3ClientFactory(get<AppConfig>().s3) }
-    single { S3StorageService(get<S3ClientFactory>().createClient(), get<AppConfig>().s3) }
+    single {
+        val factory = get<S3ClientFactory>()
+        S3StorageService(factory.createClient(), factory.createPresignClient(), get<AppConfig>().s3)
+    }
 
     // ──────────────────────────────────────────────
     // Infrastructure — FCM
@@ -87,6 +95,11 @@ val appModule = module {
     single { FcmClient(get<AppConfig>().fcm) }
     single { FcmNotificationService(get(), get()) }
     single { OutboxProcessor(get(), get(), get()) }
+
+    // ──────────────────────────────────────────────
+    // Infrastructure — Transaction Runner
+    // ──────────────────────────────────────────────
+    single<TransactionRunner> { ExposedTransactionRunner() }
 
     // ──────────────────────────────────────────────
     // Repositories
@@ -104,10 +117,10 @@ val appModule = module {
     // ──────────────────────────────────────────────
     // Use Cases — Auth
     // ──────────────────────────────────────────────
-    single { RegisterUseCase(get(), get()) }
-    single { LoginUseCase(get(), get()) }
-    single { RefreshTokenUseCase(get(), get()) }
-    single { LogoutUseCase(get()) }
+    single { RegisterUseCase(get(), get(), get()) }
+    single { LoginUseCase(get(), get(), get()) }
+    single { RefreshTokenUseCase(get(), get(), get()) }
+    single { LogoutUseCase(get(), get()) }
 
     // ──────────────────────────────────────────────
     // Use Cases — User
@@ -119,35 +132,42 @@ val appModule = module {
     // ──────────────────────────────────────────────
     // Use Cases — Trip
     // ──────────────────────────────────────────────
-    single { CreateTripUseCase(get(), get()) }
-    single { UpdateTripUseCase(get(), get()) }
+    single { CreateTripUseCase(get(), get(), get(), get()) }
+    single { UpdateTripUseCase(get(), get(), get(), get()) }
     single { GetTripUseCase(get(), get()) }
     single { ListUserTripsUseCase(get()) }
-    single { ArchiveTripUseCase(get(), get()) }
-    single { DeleteTripUseCase(get(), get()) }
+    single { ArchiveTripUseCase(get(), get(), get(), get()) }
+    single { DeleteTripUseCase(get(), get(), get(), get()) }
 
     // ──────────────────────────────────────────────
     // Use Cases — Participant
     // ──────────────────────────────────────────────
-    single { InviteParticipantUseCase(get(), get(), get()) }
-    single { AcceptInvitationUseCase(get(), get()) }
-    single { RemoveParticipantUseCase(get(), get()) }
-    single { ChangeRoleUseCase(get(), get()) }
+    single { InviteParticipantUseCase(get(), get(), get(), get(), get()) }
+    single { AcceptInvitationUseCase(get(), get(), get(), get()) }
+    single { RemoveParticipantUseCase(get(), get(), get(), get(), get()) }
+    single { ChangeRoleUseCase(get(), get(), get(), get(), get()) }
 
     // ──────────────────────────────────────────────
     // Use Cases — Itinerary
     // ──────────────────────────────────────────────
-    single { CreateItineraryPointUseCase(get(), get(), get()) }
-    single { UpdateItineraryPointUseCase(get(), get()) }
-    single { DeleteItineraryPointUseCase(get(), get()) }
-    single { ReorderItineraryUseCase(get(), get()) }
+    single { CreateItineraryPointUseCase(get(), get(), get(), get(), get()) }
+    single { UpdateItineraryPointUseCase(get(), get(), get(), get()) }
+    single { DeleteItineraryPointUseCase(get(), get(), get(), get()) }
+    single { ReorderItineraryUseCase(get(), get(), get(), get()) }
 
     // ──────────────────────────────────────────────
     // Use Cases — Expense
     // ──────────────────────────────────────────────
-    single { CreateExpenseUseCase(get(), get(), get()) }
-    single { UpdateExpenseUseCase(get<ParticipantRepository>(), get<ExpenseRepository>()) }
-    single { DeleteExpenseUseCase(get(), get()) }
+    single { CreateExpenseUseCase(get(), get(), get(), get(), get()) }
+    single {
+        UpdateExpenseUseCase(
+            participantRepository = get<ParticipantRepository>(),
+            expenseRepository = get<ExpenseRepository>(),
+            domainEventRepository = get<DomainEventRepository>(),
+            transactionRunner = get<TransactionRunner>()
+        )
+    }
+    single { DeleteExpenseUseCase(get(), get(), get(), get()) }
     single { ListExpensesUseCase(get(), get()) }
 
     // ──────────────────────────────────────────────
@@ -161,8 +181,9 @@ val appModule = module {
     // Use Cases — Attachment
     // ──────────────────────────────────────────────
     single { RequestPresignedUploadUseCase(get(), get()) }
-    single { CreateAttachmentUseCase(get(), get(), get()) }
-    single { DeleteAttachmentUseCase(get(), get()) }
+    single { RequestPresignedDownloadUseCase(get(), get()) }
+    single { CreateAttachmentUseCase(get(), get(), get(), get()) }
+    single { DeleteAttachmentUseCase(get(), get(), get()) }
 
     // ──────────────────────────────────────────────
     // Use Cases — Sync

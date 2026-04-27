@@ -63,7 +63,8 @@ class ExposedAttachmentRepository : AttachmentRepository {
         AttachmentsTable.selectAll()
             .where {
                 (AttachmentsTable.tripId eq tripId) and
-                    (AttachmentsTable.createdAt greater after)
+                        ((AttachmentsTable.createdAt greater after) or
+                                (AttachmentsTable.deletedAt greater after))
             }
             .map { it.toAttachment() }
     }

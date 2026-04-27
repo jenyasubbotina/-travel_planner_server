@@ -1,13 +1,7 @@
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.ktor)
     alias(libs.plugins.kotlin.plugin.serialization)
-}
-
-tasks.withType<ShadowJar>().configureEach {
-    mergeServiceFiles()
 }
 
 group = "com.travelplanner"
@@ -31,6 +25,27 @@ kotlin {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+// ADMIN WEB PAGE FOR LOCAL DEBUG
+val adminProjectDir = file("F:/Projects/Work/TravelPlannerAdmin")
+val adminBundleDir = file("src/main/resources/admin")
+val adminGradlewName = if (org.gradle.internal.os.OperatingSystem.current().isWindows) "gradlew.bat" else "gradlew"
+
+val buildAdminBundle by tasks.registering(Exec::class) {
+    workingDir = adminProjectDir
+    commandLine(adminProjectDir.resolve(adminGradlewName).absolutePath, ":webApp:composeCompatibilityBrowserDistribution")
+    onlyIf { adminProjectDir.exists() }
+}
+
+val copyAdminBundle by tasks.registering(Copy::class) {
+    dependsOn(buildAdminBundle)
+    from(adminProjectDir.resolve("webApp/build/dist/composeWebCompatibility/productionExecutable"))
+    into(adminBundleDir)
+}
+
+val cleanAdminBundle by tasks.registering(Delete::class) {
+    delete(adminBundleDir)
 }
 
 dependencies {
@@ -65,6 +80,7 @@ dependencies {
     implementation(libs.postgresql)
     implementation(libs.hikari)
     implementation(libs.flyway.core)
+    implementation(libs.flyway.postgresql)
 
     // Auth
     implementation(libs.jbcrypt)
@@ -93,5 +109,7 @@ dependencies {
     testImplementation(libs.testcontainers)
     testImplementation(libs.testcontainers.postgresql)
     testImplementation(libs.testcontainers.junit)
-    testRuntimeOnly(libs.junit.platform.launcher)
+    testImplementation(platform(libs.embedded.postgres.binaries.bom))
+    testImplementation(libs.embedded.postgres)
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }

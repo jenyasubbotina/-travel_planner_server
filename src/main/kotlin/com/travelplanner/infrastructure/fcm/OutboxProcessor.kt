@@ -41,7 +41,7 @@ class OutboxProcessor(
         }
     }
 
-    private suspend fun processEvents() {
+    internal suspend fun processEvents() {
         val events = domainEventRepository.findUnprocessed()
         for (event in events) {
             if (event.retryCount >= MAX_RETRIES) {
@@ -74,13 +74,42 @@ class OutboxProcessor(
     private suspend fun dispatchNotification(event: DomainEvent) {
         val payload = json.decodeFromString<JsonObject>(event.payload)
 
-        val title: String
-        val body: String
         val data = mutableMapOf(
             "eventType" to event.eventType,
             "aggregateType" to event.aggregateType,
             "aggregateId" to event.aggregateId.toString()
         )
+
+        val excludeUserId = payload["actorUserId"]?.jsonPrimitive?.content?.toUuidOrNull()
+
+        when (event.eventType) {
+            "INVITATION_CREATED" -> {
+                val title = "Trip Invitation"
+                val body = "You've been invited to a trip"
+                payload["invitationId"]?.jsonPrimitive?.content?.let { data["invitationId"] = it }
+                payload["tripId"]?.jsonPrimitive?.content?.let { data["tripId"] = it }
+                payload["tripTitle"]?.jsonPrimitive?.content?.let { data["tripTitle"] = it }
+
+                val inviteeUserId = payload["inviteeUserId"]?.jsonPrimitive?.content?.toUuidOrNull()
+                if (inviteeUserId != null) {
+                    fcmNotificationService.notifyUser(
+                        userId = inviteeUserId,
+                        title = title,
+                        body = body,
+                        data = data
+                    )
+                } else {
+                    logger.info(
+                        "Skipping push for INVITATION_CREATED id={} — invitee email has no registered user",
+                        event.id
+                    )
+                }
+                return
+            }
+        }
+
+        val title: String
+        val body: String
 
         when (event.eventType) {
             "TRIP_CREATED" -> {
@@ -103,6 +132,13 @@ class OutboxProcessor(
                 body = "${payload["participantName"]?.jsonPrimitive?.content ?: "Someone"} left the trip"
             }
 
+            "PARTICIPANT_UPDATED" -> {
+                title = "Role Updated"
+                val name = payload["participantName"]?.jsonPrimitive?.content ?: "Someone"
+                val role = payload["newRole"]?.jsonPrimitive?.content ?: "updated"
+                body = "$name is now $role"
+            }
+
             "EXPENSE_CREATED" -> {
                 title = "New Expense"
                 body = "New expense added: ${payload["description"]?.jsonPrimitive?.content ?: ""}"
@@ -118,6 +154,20 @@ class OutboxProcessor(
                 body = "The trip itinerary has been modified"
             }
 
+            "ATTACHMENT_CREATED" -> {
+                title = "New Attachment"
+                val name = payload["fileName"]?.jsonPrimitive?.content ?: "a file"
+                body = "New file uploaded: $name"
+                payload["attachmentId"]?.jsonPrimitive?.content?.let { data["attachmentId"] = it }
+            }
+
+            "ATTACHMENT_DELETED" -> {
+                title = "Attachment Removed"
+                val name = payload["fileName"]?.jsonPrimitive?.content ?: "a file"
+                body = "File removed: $name"
+                payload["attachmentId"]?.jsonPrimitive?.content?.let { data["attachmentId"] = it }
+            }
+
             else -> {
                 title = "Travel Planner"
                 body = "You have a new update"
@@ -125,14 +175,6 @@ class OutboxProcessor(
         }
 
         val tripId = event.aggregateId
-        val excludeUserId = payload["actorUserId"]?.jsonPrimitive?.content?.let {
-            try {
-                UUID.fromString(it)
-            } catch (e: IllegalArgumentException) {
-                null
-            }
-        }
-
         val participantUserIds = participantRepository.getUserIdsForTrip(tripId)
 
         fcmNotificationService.notifyTripParticipants(
@@ -142,5 +184,11 @@ class OutboxProcessor(
             body = body,
             data = data
         )
+    }
+
+    private fun String.toUuidOrNull(): UUID? = try {
+        UUID.fromString(this)
+    } catch (e: IllegalArgumentException) {
+        null
     }
 }

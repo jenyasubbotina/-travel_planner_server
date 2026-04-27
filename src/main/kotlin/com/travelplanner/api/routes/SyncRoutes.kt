@@ -4,10 +4,8 @@ import com.travelplanner.api.dto.response.AttachmentResponse
 import com.travelplanner.api.dto.response.DeltaResponse
 import com.travelplanner.api.dto.response.ExpenseResponse
 import com.travelplanner.api.dto.response.ExpenseSplitResponse
-import com.travelplanner.api.dto.response.ItineraryPointResponse
 import com.travelplanner.api.dto.response.ParticipantResponse
 import com.travelplanner.api.dto.response.SnapshotResponse
-import com.travelplanner.api.dto.response.TripResponse
 import com.travelplanner.api.middleware.currentUserId
 import com.travelplanner.api.middleware.tripIdParam
 import com.travelplanner.application.usecase.sync.GetDeltaSyncUseCase
@@ -16,9 +14,7 @@ import com.travelplanner.domain.exception.DomainException
 import com.travelplanner.domain.model.Attachment
 import com.travelplanner.domain.model.Expense
 import com.travelplanner.domain.model.ExpenseSplit
-import com.travelplanner.domain.model.ItineraryPoint
 import com.travelplanner.domain.model.SyncDelta
-import com.travelplanner.domain.model.Trip
 import com.travelplanner.domain.model.TripParticipant
 import com.travelplanner.domain.model.TripSnapshot
 import com.travelplanner.domain.repository.ExpenseRepository
@@ -70,9 +66,9 @@ private suspend fun TripSnapshot.toResponse(expenseRepository: ExpenseRepository
         expense.toSyncResponse(splits)
     }
     return SnapshotResponse(
-        trip = trip.toSyncResponse(),
+        trip = trip.toResponse(),
         participants = participants.map { it.toSyncResponse() },
-        itineraryPoints = itineraryPoints.map { it.toSyncResponse() },
+        itineraryPoints = itineraryPoints.map { it.toResponse() },
         expenses = expenseResponses,
         attachments = attachments.map { it.toSyncResponse() },
         cursor = cursor.timestamp.toString()
@@ -85,55 +81,20 @@ private suspend fun SyncDelta.toResponse(expenseRepository: ExpenseRepository): 
         expense.toSyncResponse(splits)
     }
     return DeltaResponse(
-        trips = trips.map { it.toSyncResponse() },
+        trips = trips.map { it.toResponse() },
         participants = participants.map { it.toSyncResponse() },
-        itineraryPoints = itineraryPoints.map { it.toSyncResponse() },
+        itineraryPoints = itineraryPoints.map { it.toResponse() },
         expenses = expenseResponses,
         attachments = attachments.map { it.toSyncResponse() },
         cursor = cursor.timestamp.toString()
     )
 }
 
-private fun Trip.toSyncResponse() = TripResponse(
-    id = id.toString(),
-    title = title,
-    description = description,
-    startDate = startDate?.toString(),
-    endDate = endDate?.toString(),
-    baseCurrency = baseCurrency,
-    status = status.name,
-    createdBy = createdBy.toString(),
-    createdAt = createdAt.toString(),
-    updatedAt = updatedAt.toString(),
-    version = version,
-    deletedAt = deletedAt?.toString()
-)
-
 private fun TripParticipant.toSyncResponse() = ParticipantResponse(
     tripId = tripId.toString(),
     userId = userId.toString(),
     role = role.name,
     joinedAt = joinedAt.toString()
-)
-
-private fun ItineraryPoint.toSyncResponse() = ItineraryPointResponse(
-    id = id.toString(),
-    tripId = tripId.toString(),
-    title = title,
-    description = description,
-    type = type,
-    date = date?.toString(),
-    startTime = startTime?.toString(),
-    endTime = endTime?.toString(),
-    latitude = latitude,
-    longitude = longitude,
-    address = address,
-    sortOrder = sortOrder,
-    createdBy = createdBy.toString(),
-    createdAt = createdAt.toString(),
-    updatedAt = updatedAt.toString(),
-    version = version,
-    deletedAt = deletedAt?.toString()
 )
 
 private fun Expense.toSyncResponse(splits: List<ExpenseSplit>) = ExpenseResponse(
@@ -172,5 +133,6 @@ private fun Attachment.toSyncResponse() = AttachmentResponse(
     fileSize = fileSize,
     mimeType = mimeType,
     s3Key = s3Key,
-    createdAt = createdAt.toString()
+    createdAt = createdAt.toString(),
+    deletedAt = deletedAt?.toString(),
 )

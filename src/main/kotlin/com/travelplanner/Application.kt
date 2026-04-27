@@ -6,10 +6,10 @@ import com.travelplanner.infrastructure.config.AppConfig
 import com.travelplanner.infrastructure.fcm.FcmClient
 import com.travelplanner.infrastructure.fcm.OutboxProcessor
 import com.travelplanner.infrastructure.persistence.DatabaseFactory
+import com.travelplanner.infrastructure.s3.S3StorageService
 import com.travelplanner.infrastructure.di.appModule
 import io.ktor.server.application.*
-import io.ktor.server.engine.*
-import io.ktor.server.netty.*
+import io.ktor.server.netty.EngineMain
 import io.ktor.server.plugins.swagger.*
 import io.ktor.server.routing.*
 import kotlinx.coroutines.launch
@@ -18,9 +18,8 @@ import org.koin.ktor.ext.inject
 import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
 
-fun main() {
-    embeddedServer(Netty, port = 8080, host = "0.0.0.0", module = Application::module)
-        .start(wait = true)
+fun main(args: Array<String>) {
+    EngineMain.main(args)
 }
 
 fun Application.module() {
@@ -37,10 +36,10 @@ fun Application.module() {
     DatabaseFactory.init(appConfig.database)
 
     configureCallLogging()
-    val prometheusRegistry = configureMetrics()
     configureContentNegotiation()
     configureCORS()
     configureStatusPages()
+    val metricsRegistry = configureMetrics()
 
     val jwtService by inject<com.travelplanner.infrastructure.auth.JwtService>()
     configureAuthentication(jwtService)
@@ -49,12 +48,21 @@ fun Application.module() {
     val fcmClient by inject<FcmClient>()
     fcmClient.init()
 
+    // Ensure the S3/MinIO bucket exists
+    val s3Storage by inject<S3StorageService>()
+    launch { s3Storage.ensureBucketExists() }
+
     // Start outbox processor
     val outboxProcessor by inject<OutboxProcessor>()
     launch { outboxProcessor.start(this) }
 
+    log.info(
+        "Admin debug page: enabled={} bindLocalhostOnly={}",
+        appConfig.admin.enabled,
+        appConfig.admin.bindLocalhostOnly,
+    )
+
     routing {
-        metricsRoute(prometheusRegistry)
         swaggerUI(path = "swagger", swaggerFile = "openapi/documentation.yaml")
         healthRoutes()
         authRoutes()
@@ -66,5 +74,9 @@ fun Application.module() {
         analyticsRoutes()
         attachmentRoutes()
         syncRoutes()
+
+        if (appConfig.admin.enabled) {
+            adminRoutes(appConfig.admin, metricsRegistry)
+        }
     }
 }

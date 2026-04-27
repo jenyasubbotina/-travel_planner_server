@@ -12,10 +12,10 @@ CREATE TABLE itinerary_points (
     address VARCHAR(500),
     sort_order INT NOT NULL DEFAULT 0,
     created_by UUID NOT NULL REFERENCES users(id),
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     version BIGINT NOT NULL DEFAULT 1,
-    deleted_at TIMESTAMP
+    deleted_at TIMESTAMPTZ
 );
 
 CREATE INDEX idx_itinerary_trip ON itinerary_points(trip_id);

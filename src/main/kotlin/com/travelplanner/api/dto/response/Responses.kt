@@ -47,6 +47,9 @@ data class TripResponse(
     val startDate: String? = null,
     val endDate: String? = null,
     val baseCurrency: String,
+    val totalBudget: String,
+    val destination: String,
+    val imageUrl: String? = null,
     val status: String,
     val createdBy: String,
     val createdAt: String,
@@ -97,13 +100,20 @@ data class ItineraryPointResponse(
     val tripId: String,
     val title: String,
     val description: String? = null,
+    val subtitle: String? = null,
     val type: String? = null,
     val date: String? = null,
+    val dayIndex: Int,
     val startTime: String? = null,
     val endTime: String? = null,
+    val duration: String? = null,
     val latitude: Double? = null,
     val longitude: Double? = null,
     val address: String? = null,
+    val cost: Double? = null,
+    val actualCost: Double? = null,
+    val status: String,
+    val participantIds: List<String>,
     val sortOrder: Int,
     val createdBy: String,
     val createdAt: String,
@@ -188,13 +198,20 @@ data class AttachmentResponse(
     val fileSize: Long,
     val mimeType: String,
     val s3Key: String,
-    val createdAt: String
+    val createdAt: String,
+    val deletedAt: String? = null,
 )
 
 @Serializable
 data class PresignedUploadResponse(
     val uploadUrl: String,
     val s3Key: String
+)
+
+@Serializable
+data class PresignedDownloadResponse(
+    val url: String,
+    val expiresInSeconds: Long
 )
 
 // ──────────────────────────────────────────────

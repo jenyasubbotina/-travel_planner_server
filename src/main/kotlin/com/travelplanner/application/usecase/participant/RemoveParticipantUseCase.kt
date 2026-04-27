@@ -1,13 +1,23 @@
 package com.travelplanner.application.usecase.participant
 
 import com.travelplanner.domain.exception.DomainException
+import com.travelplanner.domain.model.DomainEvent
+import com.travelplanner.domain.repository.DomainEventRepository
 import com.travelplanner.domain.repository.ParticipantRepository
+import com.travelplanner.domain.repository.TransactionRunner
 import com.travelplanner.domain.repository.TripRepository
+import com.travelplanner.domain.repository.UserRepository
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import java.time.Instant
 import java.util.UUID
 
 class RemoveParticipantUseCase(
     private val tripRepository: TripRepository,
-    private val participantRepository: ParticipantRepository
+    private val participantRepository: ParticipantRepository,
+    private val userRepository: UserRepository,
+    private val domainEventRepository: DomainEventRepository,
+    private val transactionRunner: TransactionRunner
 ) {
 
     data class Input(
@@ -16,7 +26,7 @@ class RemoveParticipantUseCase(
         val targetUserId: UUID
     )
 
-    suspend fun execute(input: Input) {
+    suspend fun execute(input: Input) = transactionRunner.runInTransaction {
         val trip = tripRepository.findById(input.tripId)
             ?: throw DomainException.TripNotFound(input.tripId)
 
@@ -38,6 +48,24 @@ class RemoveParticipantUseCase(
         val target = participantRepository.findByTripAndUser(input.tripId, input.targetUserId)
             ?: throw DomainException.ParticipantNotInTrip(input.targetUserId, input.tripId)
 
+        val targetUser = userRepository.findById(input.targetUserId)
+
         participantRepository.remove(input.tripId, input.targetUserId)
+
+        domainEventRepository.save(
+            DomainEvent(
+                id = UUID.randomUUID(),
+                eventType = "PARTICIPANT_REMOVED",
+                aggregateType = "TRIP",
+                aggregateId = input.tripId,
+                payload = buildJsonObject {
+                    put("actorUserId", input.requesterUserId.toString())
+                    put("participantUserId", input.targetUserId.toString())
+                    put("participantName", targetUser?.displayName ?: "Someone")
+                }.toString(),
+                createdAt = Instant.now()
+            )
+        )
+        Unit
     }
 }

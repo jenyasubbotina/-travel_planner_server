@@ -10,13 +10,20 @@ data class ItineraryPoint(
     val tripId: UUID,
     val title: String,
     val description: String? = null,
+    val subtitle: String? = null,
     val type: String? = null,
     val date: LocalDate? = null,
+    val dayIndex: Int = 0,
     val startTime: LocalTime? = null,
     val endTime: LocalTime? = null,
+    val duration: String? = null,
     val latitude: Double? = null,
     val longitude: Double? = null,
     val address: String? = null,
+    val cost: Double? = null,
+    val actualCost: Double? = null,
+    val status: ItineraryPointStatus = ItineraryPointStatus.NONE,
+    val participantIds: List<UUID> = emptyList(),
     val sortOrder: Int = 0,
     val createdBy: UUID,
     val createdAt: Instant,
@@ -24,3 +31,10 @@ data class ItineraryPoint(
     val version: Long = 1,
     val deletedAt: Instant? = null
 )
+
+enum class ItineraryPointStatus {
+    NONE,
+    PLANNED,
+    CONFIRMED,
+    CANCELLED
+}

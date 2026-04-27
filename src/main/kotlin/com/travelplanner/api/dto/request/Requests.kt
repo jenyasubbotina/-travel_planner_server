@@ -45,6 +45,9 @@ data class CreateTripRequest(
     val startDate: String? = null,
     val endDate: String? = null,
     val baseCurrency: String = "USD",
+    val totalBudget: String? = null,
+    val destination: String? = null,
+    val imageUrl: String? = null,
     val clientMutationId: String? = null
 )
 
@@ -55,6 +58,9 @@ data class UpdateTripRequest(
     val startDate: String? = null,
     val endDate: String? = null,
     val baseCurrency: String? = null,
+    val totalBudget: String? = null,
+    val destination: String? = null,
+    val imageUrl: String? = null,
     val status: String? = null,
     val expectedVersion: Long? = null,
     val clientMutationId: String? = null
@@ -85,13 +91,20 @@ data class ChangeRoleRequest(
 data class CreateItineraryPointRequest(
     val title: String,
     val description: String? = null,
+    val subtitle: String? = null,
     val type: String? = null,
     val date: String? = null,
+    val dayIndex: Int? = null,
     val startTime: String? = null,
     val endTime: String? = null,
+    val duration: String? = null,
     val latitude: Double? = null,
     val longitude: Double? = null,
     val address: String? = null,
+    val cost: Double? = null,
+    val actualCost: Double? = null,
+    val status: String? = null,
+    val participantIds: List<String>? = null,
     val clientMutationId: String? = null
 )
 
@@ -99,13 +112,20 @@ data class CreateItineraryPointRequest(
 data class UpdateItineraryPointRequest(
     val title: String? = null,
     val description: String? = null,
+    val subtitle: String? = null,
     val type: String? = null,
     val date: String? = null,
+    val dayIndex: Int? = null,
     val startTime: String? = null,
     val endTime: String? = null,
+    val duration: String? = null,
     val latitude: Double? = null,
     val longitude: Double? = null,
     val address: String? = null,
+    val cost: Double? = null,
+    val actualCost: Double? = null,
+    val status: String? = null,
+    val participantIds: List<String>? = null,
     val expectedVersion: Long? = null,
     val clientMutationId: String? = null
 )
@@ -171,6 +191,11 @@ data class PresignUploadRequest(
     val contentType: String,
     val fileSize: Long,
     val tripId: String
+)
+
+@Serializable
+data class PresignDownloadRequest(
+    val s3Key: String
 )
 
 @Serializable

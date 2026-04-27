@@ -1,14 +1,17 @@
 package com.travelplanner.api.routes
 
 import com.travelplanner.api.dto.request.CreateAttachmentRequest
+import com.travelplanner.api.dto.request.PresignDownloadRequest
 import com.travelplanner.api.dto.request.PresignUploadRequest
 import com.travelplanner.api.dto.response.AttachmentResponse
+import com.travelplanner.api.dto.response.PresignedDownloadResponse
 import com.travelplanner.api.dto.response.PresignedUploadResponse
 import com.travelplanner.api.middleware.currentUserId
 import com.travelplanner.api.middleware.tripIdParam
 import com.travelplanner.api.middleware.uuidParam
 import com.travelplanner.application.usecase.attachment.CreateAttachmentUseCase
 import com.travelplanner.application.usecase.attachment.DeleteAttachmentUseCase
+import com.travelplanner.application.usecase.attachment.RequestPresignedDownloadUseCase
 import com.travelplanner.application.usecase.attachment.RequestPresignedUploadUseCase
 import com.travelplanner.domain.model.Attachment
 import io.ktor.http.HttpStatusCode
@@ -24,6 +27,7 @@ import java.util.UUID
 
 fun Route.attachmentRoutes() {
     val requestPresignedUploadUseCase by inject<RequestPresignedUploadUseCase>()
+    val requestPresignedDownloadUseCase by inject<RequestPresignedDownloadUseCase>()
     val createAttachmentUseCase by inject<CreateAttachmentUseCase>()
     val deleteAttachmentUseCase by inject<DeleteAttachmentUseCase>()
 
@@ -46,6 +50,24 @@ fun Route.attachmentRoutes() {
                     PresignedUploadResponse(
                         uploadUrl = result.presignedUrl,
                         s3Key = result.s3Key
+                    )
+                )
+            }
+
+            post("/presign-download") {
+                val userId = currentUserId()
+                val req = call.receive<PresignDownloadRequest>()
+                val result = requestPresignedDownloadUseCase.execute(
+                    RequestPresignedDownloadUseCase.Input(
+                        s3Key = req.s3Key,
+                        userId = userId
+                    )
+                )
+                call.respond(
+                    HttpStatusCode.OK,
+                    PresignedDownloadResponse(
+                        url = result.url,
+                        expiresInSeconds = result.expiresInSeconds
                     )
                 )
             }
@@ -115,5 +137,6 @@ private fun Attachment.toResponse() = AttachmentResponse(
     fileSize = fileSize,
     mimeType = mimeType,
     s3Key = s3Key,
-    createdAt = createdAt.toString()
+    createdAt = createdAt.toString(),
+    deletedAt = deletedAt?.toString(),
 )

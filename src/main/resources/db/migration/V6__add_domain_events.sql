@@ -3,9 +3,9 @@ CREATE TABLE domain_events (
     event_type VARCHAR(100) NOT NULL,
     aggregate_type VARCHAR(50) NOT NULL,
     aggregate_id UUID NOT NULL,
-    payload TEXT NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    processed_at TIMESTAMP,
+    payload JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    processed_at TIMESTAMPTZ,
     retry_count INT NOT NULL DEFAULT 0
 );
 

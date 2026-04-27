@@ -1,17 +1,24 @@
 package com.travelplanner.application.usecase.trip
 
 import com.travelplanner.domain.exception.DomainException
+import com.travelplanner.domain.model.DomainEvent
+import com.travelplanner.domain.repository.DomainEventRepository
 import com.travelplanner.domain.repository.ParticipantRepository
+import com.travelplanner.domain.repository.TransactionRunner
 import com.travelplanner.domain.repository.TripRepository
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import java.time.Instant
 import java.util.UUID
 
 class DeleteTripUseCase(
     private val tripRepository: TripRepository,
-    private val participantRepository: ParticipantRepository
+    private val participantRepository: ParticipantRepository,
+    private val domainEventRepository: DomainEventRepository,
+    private val transactionRunner: TransactionRunner
 ) {
 
-    suspend fun execute(tripId: UUID, userId: UUID) {
+    suspend fun execute(tripId: UUID, userId: UUID) = transactionRunner.runInTransaction {
         val trip = tripRepository.findById(tripId)
             ?: throw DomainException.TripNotFound(tripId)
 
@@ -26,6 +33,23 @@ class DeleteTripUseCase(
             throw DomainException.InsufficientRole("OWNER")
         }
 
-        tripRepository.softDelete(tripId, Instant.now())
+        val now = Instant.now()
+        tripRepository.softDelete(tripId, now)
+
+        domainEventRepository.save(
+            DomainEvent(
+                id = UUID.randomUUID(),
+                eventType = "TRIP_UPDATED",
+                aggregateType = "TRIP",
+                aggregateId = tripId,
+                payload = buildJsonObject {
+                    put("actorUserId", userId.toString())
+                    put("tripTitle", trip.title)
+                    put("deleted", true)
+                }.toString(),
+                createdAt = now
+            )
+        )
+        Unit
     }
 }

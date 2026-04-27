@@ -49,6 +49,9 @@ class ExposedTripRepository : TripRepository {
             it[startDate] = trip.startDate
             it[endDate] = trip.endDate
             it[baseCurrency] = trip.baseCurrency
+            it[totalBudget] = trip.totalBudget
+            it[destination] = trip.destination
+            it[imageUrl] = trip.imageUrl
             it[status] = trip.status.name
             it[createdBy] = trip.createdBy
             it[createdAt] = trip.createdAt
@@ -68,6 +71,9 @@ class ExposedTripRepository : TripRepository {
             it[startDate] = trip.startDate
             it[endDate] = trip.endDate
             it[baseCurrency] = trip.baseCurrency
+            it[totalBudget] = trip.totalBudget
+            it[destination] = trip.destination
+            it[imageUrl] = trip.imageUrl
             it[status] = trip.status.name
             it[updatedAt] = now
             it[version] = newVersion
@@ -99,6 +105,9 @@ class ExposedTripRepository : TripRepository {
         startDate = this[TripsTable.startDate],
         endDate = this[TripsTable.endDate],
         baseCurrency = this[TripsTable.baseCurrency],
+        totalBudget = this[TripsTable.totalBudget],
+        destination = this[TripsTable.destination],
+        imageUrl = this[TripsTable.imageUrl],
         status = TripStatus.valueOf(this[TripsTable.status]),
         createdBy = this[TripsTable.createdBy],
         createdAt = this[TripsTable.createdAt],

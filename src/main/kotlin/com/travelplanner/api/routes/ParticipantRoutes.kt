@@ -105,8 +105,23 @@ fun Route.participantRoutes() {
             }
         }
 
-        route("/api/v1/trip-invitations/{invitationId}/accept") {
-            post {
+        route("/api/v1/trip-invitations") {
+            get {
+                val userId = currentUserId()
+                val user = userRepository.findById(userId)
+                    ?: return@get call.respond(HttpStatusCode.OK, emptyList<InvitationResponse>())
+
+                val statusFilter = call.request.queryParameters["status"]?.uppercase()
+                val pending = participantRepository.findPendingInvitationsByEmail(user.email)
+                val filtered = if (statusFilter == null || statusFilter == "PENDING") {
+                    pending
+                } else {
+                    pending.filter { it.status.name == statusFilter }
+                }
+                call.respond(HttpStatusCode.OK, filtered.map { it.toResponse() })
+            }
+
+            post("/{invitationId}/accept") {
                 val userId = currentUserId()
                 val invitationId = uuidParam("invitationId")
                 val participant = acceptInvitationUseCase.execute(invitationId, userId)

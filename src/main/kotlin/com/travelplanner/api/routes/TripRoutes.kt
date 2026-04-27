@@ -24,6 +24,7 @@ import io.ktor.server.routing.patch
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import org.koin.ktor.ext.inject
+import java.math.BigDecimal
 import java.time.LocalDate
 
 fun Route.tripRoutes() {
@@ -52,6 +53,9 @@ fun Route.tripRoutes() {
                         startDate = req.startDate?.let { LocalDate.parse(it) },
                         endDate = req.endDate?.let { LocalDate.parse(it) },
                         baseCurrency = req.baseCurrency,
+                        totalBudget = req.totalBudget?.let { BigDecimal(it) } ?: BigDecimal.ZERO,
+                        destination = req.destination.orEmpty(),
+                        imageUrl = req.imageUrl,
                         userId = userId
                     )
                 )
@@ -79,6 +83,9 @@ fun Route.tripRoutes() {
                             startDate = req.startDate?.let { LocalDate.parse(it) },
                             endDate = req.endDate?.let { LocalDate.parse(it) },
                             baseCurrency = req.baseCurrency,
+                            totalBudget = req.totalBudget?.let { BigDecimal(it) },
+                            destination = req.destination,
+                            imageUrl = req.imageUrl,
                             status = req.status?.let { TripStatus.valueOf(it) },
                             expectedVersion = req.expectedVersion ?: 0L
                         )
@@ -104,13 +111,16 @@ fun Route.tripRoutes() {
     }
 }
 
-private fun Trip.toResponse() = TripResponse(
+internal fun Trip.toResponse() = TripResponse(
     id = id.toString(),
     title = title,
     description = description,
     startDate = startDate?.toString(),
     endDate = endDate?.toString(),
     baseCurrency = baseCurrency,
+    totalBudget = totalBudget.toPlainString(),
+    destination = destination,
+    imageUrl = imageUrl,
     status = status.name,
     createdBy = createdBy.toString(),
     createdAt = createdAt.toString(),

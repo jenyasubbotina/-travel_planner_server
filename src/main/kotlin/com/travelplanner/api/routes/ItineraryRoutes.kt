@@ -13,6 +13,7 @@ import com.travelplanner.application.usecase.itinerary.DeleteItineraryPointUseCa
 import com.travelplanner.application.usecase.itinerary.ReorderItineraryUseCase
 import com.travelplanner.application.usecase.itinerary.UpdateItineraryPointUseCase
 import com.travelplanner.domain.model.ItineraryPoint
+import com.travelplanner.domain.model.ItineraryPointStatus
 import com.travelplanner.domain.repository.ItineraryRepository
 import com.travelplanner.domain.repository.ParticipantRepository
 import io.ktor.http.HttpStatusCode
@@ -60,13 +61,23 @@ fun Route.itineraryRoutes() {
                         userId = userId,
                         title = req.title,
                         description = req.description,
+                        subtitle = req.subtitle,
                         type = req.type,
                         date = req.date?.let { LocalDate.parse(it) },
+                        dayIndex = req.dayIndex ?: 0,
                         startTime = req.startTime?.let { LocalTime.parse(it) },
                         endTime = req.endTime?.let { LocalTime.parse(it) },
+                        duration = req.duration,
                         latitude = req.latitude,
                         longitude = req.longitude,
-                        address = req.address
+                        address = req.address,
+                        cost = req.cost,
+                        actualCost = req.actualCost,
+                        status = req.status?.let { ItineraryPointStatus.valueOf(it) }
+                            ?: ItineraryPointStatus.NONE,
+                        participantIds = req.participantIds
+                            ?.map { UUID.fromString(it) }
+                            .orEmpty()
                     )
                 )
                 call.respond(HttpStatusCode.Created, point.toResponse())
@@ -83,13 +94,20 @@ fun Route.itineraryRoutes() {
                         userId = userId,
                         title = req.title,
                         description = req.description,
+                        subtitle = req.subtitle,
                         type = req.type,
                         date = req.date?.let { LocalDate.parse(it) },
+                        dayIndex = req.dayIndex,
                         startTime = req.startTime?.let { LocalTime.parse(it) },
                         endTime = req.endTime?.let { LocalTime.parse(it) },
+                        duration = req.duration,
                         latitude = req.latitude,
                         longitude = req.longitude,
                         address = req.address,
+                        cost = req.cost,
+                        actualCost = req.actualCost,
+                        status = req.status?.let { ItineraryPointStatus.valueOf(it) },
+                        participantIds = req.participantIds?.map { UUID.fromString(it) },
                         expectedVersion = req.expectedVersion ?: 0L
                     )
                 )
@@ -132,18 +150,25 @@ fun Route.itineraryRoutes() {
     }
 }
 
-private fun ItineraryPoint.toResponse() = ItineraryPointResponse(
+internal fun ItineraryPoint.toResponse() = ItineraryPointResponse(
     id = id.toString(),
     tripId = tripId.toString(),
     title = title,
     description = description,
+    subtitle = subtitle,
     type = type,
     date = date?.toString(),
+    dayIndex = dayIndex,
     startTime = startTime?.toString(),
     endTime = endTime?.toString(),
+    duration = duration,
     latitude = latitude,
     longitude = longitude,
     address = address,
+    cost = cost,
+    actualCost = actualCost,
+    status = status.name,
+    participantIds = participantIds.map { it.toString() },
     sortOrder = sortOrder,
     createdBy = createdBy.toString(),
     createdAt = createdAt.toString(),

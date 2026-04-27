@@ -1,13 +1,18 @@
 package com.travelplanner.application.usecase.expense
 
 import com.travelplanner.domain.exception.DomainException
+import com.travelplanner.domain.model.DomainEvent
 import com.travelplanner.domain.model.Expense
 import com.travelplanner.domain.model.ExpenseSplit
 import com.travelplanner.domain.model.SplitType
+import com.travelplanner.domain.repository.DomainEventRepository
 import com.travelplanner.domain.repository.ExpenseRepository
 import com.travelplanner.domain.repository.ParticipantRepository
+import com.travelplanner.domain.repository.TransactionRunner
 import com.travelplanner.domain.validation.ExpenseSplitValidator
 import com.travelplanner.domain.validation.SplitInput
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
@@ -15,7 +20,9 @@ import java.util.UUID
 
 class UpdateExpenseUseCase(
     private val participantRepository: ParticipantRepository,
-    private val expenseRepository: ExpenseRepository
+    private val expenseRepository: ExpenseRepository,
+    private val domainEventRepository: DomainEventRepository,
+    private val transactionRunner: TransactionRunner
 ) {
 
     data class Input(
@@ -35,7 +42,7 @@ class UpdateExpenseUseCase(
 
     data class Output(val expense: Expense, val splits: List<ExpenseSplit>)
 
-    suspend fun execute(input: Input): Output {
+    suspend fun execute(input: Input): Output = transactionRunner.runInTransaction {
         val expense = expenseRepository.findById(input.expenseId)
             ?: throw DomainException.ExpenseNotFound(input.expenseId)
 
@@ -62,7 +69,6 @@ class UpdateExpenseUseCase(
             throw DomainException.ValidationError("Expense amount must be positive")
         }
 
-        // Check payer if changed
         val newPayerUserId = input.payerUserId ?: expense.payerUserId
         if (input.payerUserId != null) {
             if (!participantRepository.isParticipant(expense.tripId, input.payerUserId)) {
@@ -78,14 +84,11 @@ class UpdateExpenseUseCase(
             category = input.category?.trim() ?: expense.category,
             expenseDate = input.expenseDate ?: expense.expenseDate,
             splitType = input.splitType ?: expense.splitType,
-            payerUserId = newPayerUserId,
-            updatedAt = Instant.now(),
-            version = expense.version + 1
+            payerUserId = newPayerUserId
         )
 
         val savedExpense = expenseRepository.update(updatedExpense)
 
-        // Re-validate and replace splits if splits or amount/splitType changed
         val finalSplits = if (input.splits != null) {
             val tripParticipantIds = participantRepository.getUserIdsForTrip(expense.tripId).toSet()
             val splitInputs = input.splits.map { split ->
@@ -120,6 +123,21 @@ class UpdateExpenseUseCase(
             expenseRepository.findSplitsByExpense(input.expenseId)
         }
 
-        return Output(savedExpense, finalSplits)
+        domainEventRepository.save(
+            DomainEvent(
+                id = UUID.randomUUID(),
+                eventType = "EXPENSE_UPDATED",
+                aggregateType = "TRIP",
+                aggregateId = savedExpense.tripId,
+                payload = buildJsonObject {
+                    put("actorUserId", input.userId.toString())
+                    put("expenseId", savedExpense.id.toString())
+                    put("description", savedExpense.title)
+                }.toString(),
+                createdAt = Instant.now()
+            )
+        )
+
+        Output(savedExpense, finalSplits)
     }
 }

@@ -10,6 +10,7 @@ import com.travelplanner.application.usecase.user.RegisterDeviceUseCase
 import com.travelplanner.application.usecase.user.RemoveDeviceUseCase
 import com.travelplanner.domain.model.User
 import com.travelplanner.domain.model.UserDevice
+import com.travelplanner.domain.repository.UserRepository
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.authenticate
 import io.ktor.server.request.receive
@@ -25,6 +26,7 @@ fun Route.userRoutes() {
     val getProfileUseCase by inject<GetProfileUseCase>()
     val registerDeviceUseCase by inject<RegisterDeviceUseCase>()
     val removeDeviceUseCase by inject<RemoveDeviceUseCase>()
+    val userRepository by inject<UserRepository>()
 
     authenticate("auth-jwt") {
         route("/api/v1/me") {
@@ -35,6 +37,12 @@ fun Route.userRoutes() {
             }
 
             route("/devices") {
+                get {
+                    val userId = currentUserId()
+                    val devices = userRepository.findDevicesByUser(userId)
+                    call.respond(HttpStatusCode.OK, devices.map { it.toResponse() })
+                }
+
                 post {
                     val userId = currentUserId()
                     val req = call.receive<RegisterDeviceRequest>()

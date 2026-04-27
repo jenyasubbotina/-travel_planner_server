@@ -7,13 +7,15 @@ import com.travelplanner.domain.repository.UserRepository
 import com.travelplanner.domain.validation.TripValidator
 import com.travelplanner.infrastructure.auth.JwtService
 import com.travelplanner.infrastructure.auth.PasswordHasher
+import com.travelplanner.infrastructure.auth.RefreshTokenHasher
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.UUID
 
 class LoginUseCase(
     private val userRepository: UserRepository,
-    private val jwtService: JwtService
+    private val jwtService: JwtService,
+    private val refreshTokenHasher: RefreshTokenHasher
 ) {
 
     data class Input(val email: String, val password: String)
@@ -35,7 +37,7 @@ class LoginUseCase(
         val refreshToken = RefreshToken(
             id = UUID.randomUUID(),
             userId = user.id,
-            tokenHash = PasswordHasher.hash(refreshTokenStr),
+            tokenHash = refreshTokenHasher.hash(refreshTokenStr),
             expiresAt = now.plus(30, ChronoUnit.DAYS),
             createdAt = now
         )

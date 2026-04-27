@@ -97,6 +97,23 @@ class ExposedUserRepository : UserRepository {
     }
 
     override suspend fun saveDevice(device: UserDevice): UserDevice = dbQuery {
+        // re-registering the same (userId, fcmToken) returns the existing row
+        val existing = UserDevicesTable.selectAll()
+            .where {
+                (UserDevicesTable.userId eq device.userId) and
+                    (UserDevicesTable.fcmToken eq device.fcmToken)
+            }
+            .singleOrNull()
+
+        if (existing != null) {
+            if (device.deviceName != null && device.deviceName != existing[UserDevicesTable.deviceName]) {
+                UserDevicesTable.update({ UserDevicesTable.id eq existing[UserDevicesTable.id] }) {
+                    it[deviceName] = device.deviceName
+                }
+            }
+            return@dbQuery existing.toUserDevice().copy(deviceName = device.deviceName ?: existing[UserDevicesTable.deviceName])
+        }
+
         UserDevicesTable.insert {
             it[id] = device.id
             it[userId] = device.userId

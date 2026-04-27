@@ -1,18 +1,26 @@
 package com.travelplanner.application.usecase.trip
 
 import com.travelplanner.domain.exception.DomainException
+import com.travelplanner.domain.model.DomainEvent
 import com.travelplanner.domain.model.Trip
 import com.travelplanner.domain.model.TripStatus
+import com.travelplanner.domain.repository.DomainEventRepository
 import com.travelplanner.domain.repository.ParticipantRepository
+import com.travelplanner.domain.repository.TransactionRunner
 import com.travelplanner.domain.repository.TripRepository
 import com.travelplanner.domain.validation.TripValidator
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
 
 class UpdateTripUseCase(
     private val tripRepository: TripRepository,
-    private val participantRepository: ParticipantRepository
+    private val participantRepository: ParticipantRepository,
+    private val domainEventRepository: DomainEventRepository,
+    private val transactionRunner: TransactionRunner
 ) {
 
     data class Input(
@@ -23,11 +31,14 @@ class UpdateTripUseCase(
         val startDate: LocalDate? = null,
         val endDate: LocalDate? = null,
         val baseCurrency: String? = null,
+        val totalBudget: BigDecimal? = null,
+        val destination: String? = null,
+        val imageUrl: String? = null,
         val status: TripStatus? = null,
         val expectedVersion: Long
     )
 
-    suspend fun execute(input: Input): Trip {
+    suspend fun execute(input: Input): Trip = transactionRunner.runInTransaction {
         val trip = tripRepository.findById(input.tripId)
             ?: throw DomainException.TripNotFound(input.tripId)
 
@@ -61,11 +72,28 @@ class UpdateTripUseCase(
             startDate = newStartDate,
             endDate = newEndDate,
             baseCurrency = newCurrency.uppercase().trim(),
-            status = input.status ?: trip.status,
-            updatedAt = Instant.now(),
-            version = trip.version + 1
+            totalBudget = input.totalBudget ?: trip.totalBudget,
+            destination = if (input.destination != null) input.destination.trim() else trip.destination,
+            imageUrl = if (input.imageUrl != null) input.imageUrl.trim() else trip.imageUrl,
+            status = input.status ?: trip.status
         )
 
-        return tripRepository.update(updated)
+        val saved = tripRepository.update(updated)
+
+        domainEventRepository.save(
+            DomainEvent(
+                id = UUID.randomUUID(),
+                eventType = "TRIP_UPDATED",
+                aggregateType = "TRIP",
+                aggregateId = saved.id,
+                payload = buildJsonObject {
+                    put("actorUserId", input.userId.toString())
+                    put("tripTitle", saved.title)
+                }.toString(),
+                createdAt = Instant.now()
+            )
+        )
+
+        saved
     }
 }

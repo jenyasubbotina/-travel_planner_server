@@ -2,16 +2,21 @@ package com.travelplanner.application.usecase.attachment
 
 import com.travelplanner.domain.exception.DomainException
 import com.travelplanner.domain.model.Attachment
+import com.travelplanner.domain.model.DomainEvent
 import com.travelplanner.domain.repository.AttachmentRepository
+import com.travelplanner.domain.repository.DomainEventRepository
 import com.travelplanner.domain.repository.ExpenseRepository
 import com.travelplanner.domain.repository.ParticipantRepository
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import java.time.Instant
 import java.util.UUID
 
 class CreateAttachmentUseCase(
     private val participantRepository: ParticipantRepository,
     private val attachmentRepository: AttachmentRepository,
-    private val expenseRepository: ExpenseRepository
+    private val expenseRepository: ExpenseRepository,
+    private val domainEventRepository: DomainEventRepository,
 ) {
 
     data class Input(
@@ -46,6 +51,7 @@ class CreateAttachmentUseCase(
             }
         }
 
+        val now = Instant.now()
         val attachment = Attachment(
             id = UUID.randomUUID(),
             tripId = input.tripId,
@@ -55,9 +61,27 @@ class CreateAttachmentUseCase(
             fileSize = input.fileSize,
             mimeType = input.mimeType,
             s3Key = input.s3Key,
-            createdAt = Instant.now()
+            createdAt = now
         )
 
-        return attachmentRepository.create(attachment)
+        val created = attachmentRepository.create(attachment)
+
+        domainEventRepository.save(
+            DomainEvent(
+                id = UUID.randomUUID(),
+                eventType = "ATTACHMENT_CREATED",
+                aggregateType = "TRIP",
+                aggregateId = input.tripId,
+                payload = buildJsonObject {
+                    put("actorUserId", input.userId.toString())
+                    put("attachmentId", created.id.toString())
+                    put("fileName", created.fileName)
+                    if (input.expenseId != null) put("expenseId", input.expenseId.toString())
+                }.toString(),
+                createdAt = now
+            )
+        )
+
+        return created
     }
 }

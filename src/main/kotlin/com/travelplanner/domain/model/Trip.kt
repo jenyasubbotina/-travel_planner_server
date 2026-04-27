@@ -1,5 +1,6 @@
 package com.travelplanner.domain.model
 
+import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
@@ -11,6 +12,9 @@ data class Trip(
     val startDate: LocalDate? = null,
     val endDate: LocalDate? = null,
     val baseCurrency: String = "USD",
+    val totalBudget: BigDecimal = BigDecimal.ZERO,
+    val destination: String = "",
+    val imageUrl: String? = null,
     val status: TripStatus = TripStatus.ACTIVE,
     val createdBy: UUID,
     val createdAt: Instant,

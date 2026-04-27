@@ -1,15 +1,20 @@
 package com.travelplanner.application.usecase.expense
 
 import com.travelplanner.domain.exception.DomainException
+import com.travelplanner.domain.model.DomainEvent
 import com.travelplanner.domain.model.Expense
 import com.travelplanner.domain.model.ExpenseSplit
 import com.travelplanner.domain.model.SplitType
 import com.travelplanner.domain.model.TripStatus
+import com.travelplanner.domain.repository.DomainEventRepository
 import com.travelplanner.domain.repository.ExpenseRepository
 import com.travelplanner.domain.repository.ParticipantRepository
+import com.travelplanner.domain.repository.TransactionRunner
 import com.travelplanner.domain.repository.TripRepository
 import com.travelplanner.domain.validation.ExpenseSplitValidator
 import com.travelplanner.domain.validation.SplitInput
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
@@ -18,7 +23,9 @@ import java.util.UUID
 class CreateExpenseUseCase(
     private val tripRepository: TripRepository,
     private val participantRepository: ParticipantRepository,
-    private val expenseRepository: ExpenseRepository
+    private val expenseRepository: ExpenseRepository,
+    private val domainEventRepository: DomainEventRepository,
+    private val transactionRunner: TransactionRunner
 ) {
 
     data class Input(
@@ -42,7 +49,7 @@ class CreateExpenseUseCase(
 
     data class Output(val expense: Expense, val splits: List<ExpenseSplit>)
 
-    suspend fun execute(input: Input): Output {
+    suspend fun execute(input: Input): Output = transactionRunner.runInTransaction {
         if (input.title.isBlank()) {
             throw DomainException.ValidationError("Expense title cannot be blank")
         }
@@ -69,15 +76,12 @@ class CreateExpenseUseCase(
             throw DomainException.InsufficientRole("EDITOR")
         }
 
-        // Check that payer is a participant
         if (!participantRepository.isParticipant(input.tripId, input.payerUserId)) {
             throw DomainException.ParticipantNotInTrip(input.payerUserId, input.tripId)
         }
 
-        // Get all participant user IDs for validation
         val tripParticipantIds = participantRepository.getUserIdsForTrip(input.tripId).toSet()
 
-        // Validate and calculate splits
         val splitInputs = input.splits.map { split ->
             SplitInput(
                 participantUserId = split.participantUserId,
@@ -127,6 +131,21 @@ class CreateExpenseUseCase(
 
         expenseRepository.replaceSplits(expenseId, expenseSplits)
 
-        return Output(createdExpense, expenseSplits)
+        domainEventRepository.save(
+            DomainEvent(
+                id = UUID.randomUUID(),
+                eventType = "EXPENSE_CREATED",
+                aggregateType = "TRIP",
+                aggregateId = input.tripId,
+                payload = buildJsonObject {
+                    put("actorUserId", input.userId.toString())
+                    put("expenseId", createdExpense.id.toString())
+                    put("description", createdExpense.title)
+                }.toString(),
+                createdAt = now
+            )
+        )
+
+        Output(createdExpense, expenseSplits)
     }
 }

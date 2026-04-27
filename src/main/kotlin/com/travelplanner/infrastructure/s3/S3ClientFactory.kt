@@ -9,10 +9,14 @@ import com.travelplanner.infrastructure.config.S3Config
 
 class S3ClientFactory(private val config: S3Config) {
 
-    fun createClient(): S3Client {
+    fun createClient(): S3Client = buildClient(config.endpoint)
+
+    fun createPresignClient(): S3Client = buildClient(config.publicEndpoint ?: config.endpoint)
+
+    private fun buildClient(endpoint: String): S3Client {
         return S3Client {
             region = config.region
-            endpointUrl = Url.parse(config.endpoint)
+            endpointUrl = Url.parse(endpoint)
             credentialsProvider = StaticS3CredentialsProvider(config.accessKey, config.secretKey)
             forcePathStyle = true
         }

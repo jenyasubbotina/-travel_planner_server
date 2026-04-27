@@ -1,14 +1,19 @@
 package com.travelplanner.application.usecase.attachment
 
 import com.travelplanner.domain.exception.DomainException
+import com.travelplanner.domain.model.DomainEvent
 import com.travelplanner.domain.repository.AttachmentRepository
+import com.travelplanner.domain.repository.DomainEventRepository
 import com.travelplanner.domain.repository.ParticipantRepository
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import java.time.Instant
 import java.util.UUID
 
 class DeleteAttachmentUseCase(
     private val attachmentRepository: AttachmentRepository,
-    private val participantRepository: ParticipantRepository
+    private val participantRepository: ParticipantRepository,
+    private val domainEventRepository: DomainEventRepository,
 ) {
 
     data class Input(val attachmentId: UUID, val userId: UUID)
@@ -31,7 +36,22 @@ class DeleteAttachmentUseCase(
             }
         }
 
-        // Soft delete the attachment record; S3 object is not deleted immediately
-        attachmentRepository.softDelete(input.attachmentId, Instant.now())
+        val now = Instant.now()
+        attachmentRepository.softDelete(input.attachmentId, now)
+
+        domainEventRepository.save(
+            DomainEvent(
+                id = UUID.randomUUID(),
+                eventType = "ATTACHMENT_DELETED",
+                aggregateType = "TRIP",
+                aggregateId = attachment.tripId,
+                payload = buildJsonObject {
+                    put("actorUserId", input.userId.toString())
+                    put("attachmentId", attachment.id.toString())
+                    put("fileName", attachment.fileName)
+                }.toString(),
+                createdAt = now
+            )
+        )
     }
 }
