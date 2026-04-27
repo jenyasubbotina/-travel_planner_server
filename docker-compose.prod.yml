@@ -17,7 +17,6 @@ services:
         condition: service_healthy
       minio:
         condition: service_started
-    # Список KEY=value — дублирует дефолты; реальные значения подхватывает sh из command выше.
     environment:
       - DATABASE_URL=jdbc:postgresql://postgres:5432/travel_planner
       - DATABASE_USER=${POSTGRES_USER:-tp_user}
