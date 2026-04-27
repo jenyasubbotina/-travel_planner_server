@@ -7,6 +7,7 @@ data class Attachment(
     val id: UUID,
     val tripId: UUID,
     val expenseId: UUID? = null,
+    val pointId: UUID? = null,
     val uploadedBy: UUID,
     val fileName: String,
     val fileSize: Long,

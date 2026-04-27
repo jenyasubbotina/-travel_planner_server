@@ -5,16 +5,22 @@ import com.travelplanner.domain.repository.AttachmentRepository
 import com.travelplanner.infrastructure.persistence.DatabaseFactory.dbQuery
 import com.travelplanner.infrastructure.persistence.tables.AttachmentsTable
 import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import java.time.Instant
 import java.util.UUID
 
 class ExposedAttachmentRepository : AttachmentRepository {
 
-    override suspend fun findByTrip(tripId: UUID): List<Attachment> = dbQuery {
+    override suspend fun findByTrip(tripId: UUID): List<Attachment> = findByTrip(tripId, includeExpenseAttachments = true)
+
+    override suspend fun findByTrip(tripId: UUID, includeExpenseAttachments: Boolean): List<Attachment> = dbQuery {
         AttachmentsTable.selectAll()
             .where {
-                (AttachmentsTable.tripId eq tripId) and AttachmentsTable.deletedAt.isNull()
+                val base = (AttachmentsTable.tripId eq tripId) and AttachmentsTable.deletedAt.isNull()
+                if (includeExpenseAttachments) {
+                    base
+                } else {
+                    base and AttachmentsTable.expenseId.isNull() and AttachmentsTable.pointId.isNull()
+                }
             }
             .map { it.toAttachment() }
     }
@@ -41,6 +47,7 @@ class ExposedAttachmentRepository : AttachmentRepository {
             it[id] = attachment.id
             it[tripId] = attachment.tripId
             it[expenseId] = attachment.expenseId
+            it[pointId] = attachment.pointId
             it[uploadedBy] = attachment.uploadedBy
             it[fileName] = attachment.fileName
             it[fileSize] = attachment.fileSize
@@ -75,6 +82,7 @@ class ExposedAttachmentRepository : AttachmentRepository {
         id = this[AttachmentsTable.id],
         tripId = this[AttachmentsTable.tripId],
         expenseId = this[AttachmentsTable.expenseId],
+        pointId = this[AttachmentsTable.pointId],
         uploadedBy = this[AttachmentsTable.uploadedBy],
         fileName = this[AttachmentsTable.fileName],
         fileSize = this[AttachmentsTable.fileSize],

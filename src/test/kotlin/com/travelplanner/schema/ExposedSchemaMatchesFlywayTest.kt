@@ -3,11 +3,18 @@ package com.travelplanner.schema
 import com.travelplanner.infrastructure.persistence.tables.AttachmentsTable
 import com.travelplanner.infrastructure.persistence.tables.AuthRefreshTokensTable
 import com.travelplanner.infrastructure.persistence.tables.DomainEventsTable
+import com.travelplanner.infrastructure.persistence.tables.ExpenseHistoryTable
+import com.travelplanner.infrastructure.persistence.tables.ExpensePendingUpdatesTable
 import com.travelplanner.infrastructure.persistence.tables.ExpenseSplitsTable
 import com.travelplanner.infrastructure.persistence.tables.ExpensesTable
 import com.travelplanner.infrastructure.persistence.tables.IdempotencyKeysTable
+import com.travelplanner.infrastructure.persistence.tables.ItineraryPointCommentsTable
+import com.travelplanner.infrastructure.persistence.tables.ItineraryPointLinksTable
 import com.travelplanner.infrastructure.persistence.tables.ItineraryPointsTable
+import com.travelplanner.infrastructure.persistence.tables.TripChecklistCompletionsTable
+import com.travelplanner.infrastructure.persistence.tables.TripChecklistItemsTable
 import com.travelplanner.infrastructure.persistence.tables.TripInvitationsTable
+import com.travelplanner.infrastructure.persistence.tables.TripJoinRequestsTable
 import com.travelplanner.infrastructure.persistence.tables.TripParticipantsTable
 import com.travelplanner.infrastructure.persistence.tables.TripsTable
 import com.travelplanner.infrastructure.persistence.tables.UserDevicesTable
@@ -51,11 +58,18 @@ class ExposedSchemaMatchesFlywayTest {
             TripInvitationsTable,
             TripParticipantsTable,
             ItineraryPointsTable,
+            ItineraryPointLinksTable,
+            ItineraryPointCommentsTable,
             ExpensesTable,
             ExpenseSplitsTable,
             AttachmentsTable,
             IdempotencyKeysTable,
-            DomainEventsTable
+            DomainEventsTable,
+            TripChecklistItemsTable,
+            TripChecklistCompletionsTable,
+            TripJoinRequestsTable,
+            ExpensePendingUpdatesTable,
+            ExpenseHistoryTable
         )
     }
 

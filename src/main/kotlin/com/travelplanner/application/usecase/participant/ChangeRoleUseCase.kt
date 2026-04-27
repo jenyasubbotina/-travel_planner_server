@@ -1,5 +1,6 @@
 package com.travelplanner.application.usecase.participant
 
+import com.travelplanner.domain.event.HistoryPayload
 import com.travelplanner.domain.exception.DomainException
 import com.travelplanner.domain.model.DomainEvent
 import com.travelplanner.domain.model.TripRole
@@ -54,6 +55,7 @@ class ChangeRoleUseCase(
         val target = participantRepository.findByTripAndUser(input.tripId, input.targetUserId)
             ?: throw DomainException.ParticipantNotInTrip(input.targetUserId, input.tripId)
 
+        val previousRole = target.role
         val targetUser = userRepository.findById(input.targetUserId)
 
         participantRepository.updateRole(input.tripId, input.targetUserId, input.newRole)
@@ -64,12 +66,18 @@ class ChangeRoleUseCase(
                 eventType = "PARTICIPANT_UPDATED",
                 aggregateType = "TRIP",
                 aggregateId = input.tripId,
-                payload = buildJsonObject {
-                    put("actorUserId", input.requesterUserId.toString())
-                    put("participantUserId", input.targetUserId.toString())
-                    put("participantName", targetUser?.displayName ?: "Someone")
-                    put("newRole", input.newRole.name)
-                }.toString(),
+                payload = HistoryPayload.build(
+                    actorUserId = input.requesterUserId,
+                    entityType = HistoryPayload.EntityType.PARTICIPANT,
+                    entityId = input.targetUserId,
+                    actionType = HistoryPayload.ActionType.CHANGE_ROLE,
+                    context = buildJsonObject {
+                        put("participantUserId", input.targetUserId.toString())
+                        put("participantName", targetUser?.displayName ?: "Someone")
+                        put("oldRole", previousRole.name)
+                        put("newRole", input.newRole.name)
+                    },
+                ),
                 createdAt = Instant.now()
             )
         )

@@ -1,12 +1,11 @@
 package com.travelplanner.application.usecase.attachment
 
+import com.travelplanner.domain.event.HistoryPayload
 import com.travelplanner.domain.exception.DomainException
 import com.travelplanner.domain.model.DomainEvent
 import com.travelplanner.domain.repository.AttachmentRepository
 import com.travelplanner.domain.repository.DomainEventRepository
 import com.travelplanner.domain.repository.ParticipantRepository
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
 import java.time.Instant
 import java.util.UUID
 
@@ -45,11 +44,13 @@ class DeleteAttachmentUseCase(
                 eventType = "ATTACHMENT_DELETED",
                 aggregateType = "TRIP",
                 aggregateId = attachment.tripId,
-                payload = buildJsonObject {
-                    put("actorUserId", input.userId.toString())
-                    put("attachmentId", attachment.id.toString())
-                    put("fileName", attachment.fileName)
-                }.toString(),
+                payload = HistoryPayload.build(
+                    actorUserId = input.userId,
+                    entityType = HistoryPayload.EntityType.ATTACHMENT,
+                    entityId = attachment.id,
+                    actionType = HistoryPayload.ActionType.DELETE,
+                    entity = HistoryPayload.attachmentSnapshot(attachment),
+                ),
                 createdAt = now
             )
         )

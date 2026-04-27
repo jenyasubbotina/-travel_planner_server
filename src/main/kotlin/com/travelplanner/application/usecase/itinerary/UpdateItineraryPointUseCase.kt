@@ -1,5 +1,6 @@
 package com.travelplanner.application.usecase.itinerary
 
+import com.travelplanner.domain.event.HistoryPayload
 import com.travelplanner.domain.exception.DomainException
 import com.travelplanner.domain.model.DomainEvent
 import com.travelplanner.domain.model.ItineraryPoint
@@ -8,8 +9,6 @@ import com.travelplanner.domain.repository.DomainEventRepository
 import com.travelplanner.domain.repository.ItineraryRepository
 import com.travelplanner.domain.repository.ParticipantRepository
 import com.travelplanner.domain.repository.TransactionRunner
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -29,6 +28,7 @@ class UpdateItineraryPointUseCase(
         val description: String? = null,
         val subtitle: String? = null,
         val type: String? = null,
+        val category: String? = null,
         val date: LocalDate? = null,
         val dayIndex: Int? = null,
         val startTime: LocalTime? = null,
@@ -82,6 +82,7 @@ class UpdateItineraryPointUseCase(
             description = if (input.description != null) input.description.trim() else point.description,
             subtitle = if (input.subtitle != null) input.subtitle.trim() else point.subtitle,
             type = if (input.type != null) input.type.trim() else point.type,
+            category = if (input.category != null) input.category.trim().takeIf { it.isNotEmpty() } else point.category,
             date = input.date ?: point.date,
             dayIndex = input.dayIndex ?: point.dayIndex,
             startTime = input.startTime ?: point.startTime,
@@ -98,20 +99,29 @@ class UpdateItineraryPointUseCase(
 
         val saved = itineraryRepository.update(updated)
 
-        domainEventRepository.save(
-            DomainEvent(
-                id = UUID.randomUUID(),
-                eventType = "ITINERARY_UPDATED",
-                aggregateType = "TRIP",
-                aggregateId = saved.tripId,
-                payload = buildJsonObject {
-                    put("actorUserId", input.userId.toString())
-                    put("pointId", saved.id.toString())
-                    put("change", "UPDATED")
-                }.toString(),
-                createdAt = Instant.now()
-            )
+        val diff = HistoryPayload.diff(
+            HistoryPayload.eventSnapshot(point),
+            HistoryPayload.eventSnapshot(saved),
         )
+        if (diff != null) {
+            domainEventRepository.save(
+                DomainEvent(
+                    id = UUID.randomUUID(),
+                    eventType = "ITINERARY_POINT_UPDATED",
+                    aggregateType = "TRIP",
+                    aggregateId = saved.tripId,
+                    payload = HistoryPayload.build(
+                        actorUserId = input.userId,
+                        entityType = HistoryPayload.EntityType.EVENT,
+                        entityId = saved.id,
+                        actionType = HistoryPayload.ActionType.UPDATE,
+                        old = diff.first,
+                        new = diff.second,
+                    ),
+                    createdAt = Instant.now()
+                )
+            )
+        }
 
         saved
     }

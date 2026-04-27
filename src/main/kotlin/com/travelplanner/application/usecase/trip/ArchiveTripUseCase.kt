@@ -1,5 +1,6 @@
 package com.travelplanner.application.usecase.trip
 
+import com.travelplanner.domain.event.HistoryPayload
 import com.travelplanner.domain.exception.DomainException
 import com.travelplanner.domain.model.DomainEvent
 import com.travelplanner.domain.model.Trip
@@ -42,13 +43,16 @@ class ArchiveTripUseCase(
         domainEventRepository.save(
             DomainEvent(
                 id = UUID.randomUUID(),
-                eventType = "TRIP_UPDATED",
+                eventType = "TRIP_ARCHIVED",
                 aggregateType = "TRIP",
                 aggregateId = saved.id,
-                payload = buildJsonObject {
-                    put("actorUserId", userId.toString())
-                    put("tripTitle", saved.title)
-                }.toString(),
+                payload = HistoryPayload.build(
+                    actorUserId = userId,
+                    entityType = HistoryPayload.EntityType.TRIP,
+                    entityId = saved.id,
+                    actionType = HistoryPayload.ActionType.ARCHIVE,
+                    context = buildJsonObject { put("title", saved.title) },
+                ),
                 createdAt = Instant.now()
             )
         )

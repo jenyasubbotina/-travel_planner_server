@@ -1,13 +1,12 @@
 package com.travelplanner.application.usecase.trip
 
+import com.travelplanner.domain.event.HistoryPayload
 import com.travelplanner.domain.exception.DomainException
 import com.travelplanner.domain.model.DomainEvent
 import com.travelplanner.domain.repository.DomainEventRepository
 import com.travelplanner.domain.repository.ParticipantRepository
 import com.travelplanner.domain.repository.TransactionRunner
 import com.travelplanner.domain.repository.TripRepository
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
 import java.time.Instant
 import java.util.UUID
 
@@ -39,14 +38,16 @@ class DeleteTripUseCase(
         domainEventRepository.save(
             DomainEvent(
                 id = UUID.randomUUID(),
-                eventType = "TRIP_UPDATED",
+                eventType = "TRIP_DELETED",
                 aggregateType = "TRIP",
                 aggregateId = tripId,
-                payload = buildJsonObject {
-                    put("actorUserId", userId.toString())
-                    put("tripTitle", trip.title)
-                    put("deleted", true)
-                }.toString(),
+                payload = HistoryPayload.build(
+                    actorUserId = userId,
+                    entityType = HistoryPayload.EntityType.TRIP,
+                    entityId = tripId,
+                    actionType = HistoryPayload.ActionType.DELETE,
+                    entity = HistoryPayload.tripSnapshot(trip),
+                ),
                 createdAt = now
             )
         )

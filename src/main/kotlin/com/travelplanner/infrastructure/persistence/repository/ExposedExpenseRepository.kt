@@ -1,10 +1,14 @@
 package com.travelplanner.infrastructure.persistence.repository
 
 import com.travelplanner.domain.model.Expense
+import com.travelplanner.domain.model.ExpenseHistoryEntry
+import com.travelplanner.domain.model.ExpensePendingUpdate
 import com.travelplanner.domain.model.ExpenseSplit
 import com.travelplanner.domain.model.SplitType
 import com.travelplanner.domain.repository.ExpenseRepository
 import com.travelplanner.infrastructure.persistence.DatabaseFactory.dbQuery
+import com.travelplanner.infrastructure.persistence.tables.ExpenseHistoryTable
+import com.travelplanner.infrastructure.persistence.tables.ExpensePendingUpdatesTable
 import com.travelplanner.infrastructure.persistence.tables.ExpenseSplitsTable
 import com.travelplanner.infrastructure.persistence.tables.ExpensesTable
 import org.jetbrains.exposed.sql.*
@@ -165,5 +169,95 @@ class ExposedExpenseRepository : ExpenseRepository {
         shareType = SplitType.valueOf(this[ExpenseSplitsTable.shareType]),
         value = this[ExpenseSplitsTable.value],
         amountInExpenseCurrency = this[ExpenseSplitsTable.amountInExpenseCurrency]
+    )
+
+    // --- Pending updates ---
+
+    override suspend fun findPendingUpdate(expenseId: UUID): ExpensePendingUpdate? = dbQuery {
+        ExpensePendingUpdatesTable.selectAll()
+            .where { ExpensePendingUpdatesTable.expenseId eq expenseId }
+            .singleOrNull()
+            ?.toPendingUpdate()
+    }
+
+    override suspend fun upsertPendingUpdate(pending: ExpensePendingUpdate): Unit = dbQuery {
+        val updated = ExpensePendingUpdatesTable.update({ ExpensePendingUpdatesTable.expenseId eq pending.expenseId }) {
+            it[proposedByUserId] = pending.proposedByUserId
+            it[proposedAt] = pending.proposedAt
+            it[baseVersion] = pending.baseVersion
+            it[payload] = pending.payload
+        }
+        if (updated == 0) {
+            ExpensePendingUpdatesTable.insert {
+                it[expenseId] = pending.expenseId
+                it[proposedByUserId] = pending.proposedByUserId
+                it[proposedAt] = pending.proposedAt
+                it[baseVersion] = pending.baseVersion
+                it[payload] = pending.payload
+            }
+        }
+    }
+
+    override suspend fun deletePendingUpdate(expenseId: UUID): Boolean = dbQuery {
+        ExpensePendingUpdatesTable.deleteWhere { ExpensePendingUpdatesTable.expenseId eq expenseId } > 0
+    }
+
+    override suspend fun findPendingUpdatesByTrip(tripId: UUID): List<ExpensePendingUpdate> = dbQuery {
+        val expenseIds = ExpensesTable
+            .select(ExpensesTable.id)
+            .where { ExpensesTable.tripId eq tripId }
+            .map { it[ExpensesTable.id] }
+        if (expenseIds.isEmpty()) return@dbQuery emptyList()
+        ExpensePendingUpdatesTable.selectAll()
+            .where { ExpensePendingUpdatesTable.expenseId inList expenseIds }
+            .map { it.toPendingUpdate() }
+    }
+
+    private fun ResultRow.toPendingUpdate() = ExpensePendingUpdate(
+        expenseId = this[ExpensePendingUpdatesTable.expenseId],
+        proposedByUserId = this[ExpensePendingUpdatesTable.proposedByUserId],
+        proposedAt = this[ExpensePendingUpdatesTable.proposedAt],
+        baseVersion = this[ExpensePendingUpdatesTable.baseVersion],
+        payload = this[ExpensePendingUpdatesTable.payload],
+    )
+
+    // --- History ---
+
+    override suspend fun appendHistory(entry: ExpenseHistoryEntry): Unit = dbQuery {
+        val updated = ExpenseHistoryTable.update({
+            (ExpenseHistoryTable.expenseId eq entry.expenseId) and
+                (ExpenseHistoryTable.version eq entry.version)
+        }) {
+            it[snapshot] = entry.snapshot
+            it[editedByUserId] = entry.editedByUserId
+            it[editedAt] = entry.editedAt
+        }
+        if (updated == 0) {
+            ExpenseHistoryTable.insert {
+                it[expenseId] = entry.expenseId
+                it[version] = entry.version
+                it[snapshot] = entry.snapshot
+                it[editedByUserId] = entry.editedByUserId
+                it[editedAt] = entry.editedAt
+            }
+        }
+    }
+
+    override suspend fun findHistoryAt(expenseId: UUID, version: Long): ExpenseHistoryEntry? = dbQuery {
+        ExpenseHistoryTable.selectAll()
+            .where {
+                (ExpenseHistoryTable.expenseId eq expenseId) and
+                    (ExpenseHistoryTable.version eq version)
+            }
+            .singleOrNull()
+            ?.toHistoryEntry()
+    }
+
+    private fun ResultRow.toHistoryEntry() = ExpenseHistoryEntry(
+        expenseId = this[ExpenseHistoryTable.expenseId],
+        version = this[ExpenseHistoryTable.version],
+        snapshot = this[ExpenseHistoryTable.snapshot],
+        editedByUserId = this[ExpenseHistoryTable.editedByUserId],
+        editedAt = this[ExpenseHistoryTable.editedAt],
     )
 }

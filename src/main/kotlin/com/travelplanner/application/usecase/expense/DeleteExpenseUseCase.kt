@@ -1,13 +1,12 @@
 package com.travelplanner.application.usecase.expense
 
+import com.travelplanner.domain.event.HistoryPayload
 import com.travelplanner.domain.exception.DomainException
 import com.travelplanner.domain.model.DomainEvent
 import com.travelplanner.domain.repository.DomainEventRepository
 import com.travelplanner.domain.repository.ExpenseRepository
 import com.travelplanner.domain.repository.ParticipantRepository
 import com.travelplanner.domain.repository.TransactionRunner
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
 import java.time.Instant
 import java.util.UUID
 
@@ -45,15 +44,16 @@ class DeleteExpenseUseCase(
         domainEventRepository.save(
             DomainEvent(
                 id = UUID.randomUUID(),
-                eventType = "EXPENSE_UPDATED",
+                eventType = "EXPENSE_DELETED",
                 aggregateType = "TRIP",
                 aggregateId = input.tripId,
-                payload = buildJsonObject {
-                    put("actorUserId", input.userId.toString())
-                    put("expenseId", input.expenseId.toString())
-                    put("description", expense.title)
-                    put("deleted", true)
-                }.toString(),
+                payload = HistoryPayload.build(
+                    actorUserId = input.userId,
+                    entityType = HistoryPayload.EntityType.EXPENSE,
+                    entityId = input.expenseId,
+                    actionType = HistoryPayload.ActionType.DELETE,
+                    entity = HistoryPayload.expenseSnapshot(expense),
+                ),
                 createdAt = now
             )
         )

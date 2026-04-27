@@ -121,6 +121,7 @@ internal fun Trip.toResponse() = TripResponse(
     totalBudget = totalBudget.toPlainString(),
     destination = destination,
     imageUrl = imageUrl,
+    joinCode = joinCode,
     status = status.name,
     createdBy = createdBy.toString(),
     createdAt = createdAt.toString(),

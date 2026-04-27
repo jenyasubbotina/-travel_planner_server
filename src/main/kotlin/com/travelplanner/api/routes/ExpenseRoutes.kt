@@ -1,7 +1,9 @@
 package com.travelplanner.api.routes
 
 import com.travelplanner.api.dto.request.CreateExpenseRequest
+import com.travelplanner.api.dto.request.MergeExpenseRequest
 import com.travelplanner.api.dto.request.UpdateExpenseRequest
+import com.travelplanner.api.dto.response.ExpensePendingUpdateResponse
 import com.travelplanner.api.dto.response.ExpenseResponse
 import com.travelplanner.api.dto.response.ExpenseSplitResponse
 import com.travelplanner.api.middleware.currentUserId
@@ -11,9 +13,13 @@ import com.travelplanner.api.middleware.uuidParam
 import com.travelplanner.application.usecase.expense.CreateExpenseUseCase
 import com.travelplanner.application.usecase.expense.DeleteExpenseUseCase
 import com.travelplanner.application.usecase.expense.ListExpensesUseCase
+import com.travelplanner.application.usecase.expense.ResolveExpenseConflictMergeUseCase
+import com.travelplanner.application.usecase.expense.ResolveExpenseConflictRevertUseCase
+import com.travelplanner.application.usecase.expense.ResolveExpenseConflictUseCase
 import com.travelplanner.application.usecase.expense.UpdateExpenseUseCase
 import com.travelplanner.domain.exception.DomainException
 import com.travelplanner.domain.model.Expense
+import com.travelplanner.domain.model.ExpensePendingUpdate
 import com.travelplanner.domain.model.ExpenseSplit
 import com.travelplanner.domain.model.SplitType
 import com.travelplanner.domain.repository.ExpenseRepository
@@ -38,6 +44,9 @@ fun Route.expenseRoutes() {
     val updateExpenseUseCase by inject<UpdateExpenseUseCase>()
     val listExpensesUseCase by inject<ListExpensesUseCase>()
     val deleteExpenseUseCase by inject<DeleteExpenseUseCase>()
+    val resolveExpenseConflictUseCase by inject<ResolveExpenseConflictUseCase>()
+    val resolveExpenseConflictMergeUseCase by inject<ResolveExpenseConflictMergeUseCase>()
+    val resolveExpenseConflictRevertUseCase by inject<ResolveExpenseConflictRevertUseCase>()
     val expenseRepository by inject<ExpenseRepository>()
     val participantRepository by inject<ParticipantRepository>()
 
@@ -63,9 +72,16 @@ fun Route.expenseRoutes() {
                     )
                 )
 
+                val pendingByExpense = expenseRepository
+                    .findPendingUpdatesByTrip(tripId)
+                    .associateBy { it.expenseId }
                 val responses = expenses.map { expense ->
                     val splits = expenseRepository.findSplitsByExpense(expense.id)
-                    expense.toResponse(splits)
+                    val pending = pendingByExpense[expense.id]
+                    val baseSnapshot = pending?.let {
+                        expenseRepository.findHistoryAt(expense.id, it.baseVersion)?.snapshot
+                    }
+                    expense.toResponse(splits, pending, baseSnapshot)
                 }
                 call.respond(HttpStatusCode.OK, responses)
             }
@@ -94,7 +110,7 @@ fun Route.expenseRoutes() {
                         }
                     )
                 )
-                call.respond(HttpStatusCode.Created, result.expense.toResponse(result.splits))
+                call.respond(HttpStatusCode.Created, result.expense.toResponse(result.splits, null))
             }
 
             route("/{expenseId}") {
@@ -106,7 +122,70 @@ fun Route.expenseRoutes() {
                     val expense = expenseRepository.findById(expenseId)
                         ?: throw DomainException.ExpenseNotFound(expenseId)
                     val splits = expenseRepository.findSplitsByExpense(expenseId)
-                    call.respond(HttpStatusCode.OK, expense.toResponse(splits))
+                    val pending = expenseRepository.findPendingUpdate(expenseId)
+                    val baseSnapshot = pending?.let {
+                        expenseRepository.findHistoryAt(expenseId, it.baseVersion)?.snapshot
+                    }
+                    call.respond(HttpStatusCode.OK, expense.toResponse(splits, pending, baseSnapshot))
+                }
+
+                post("/resolve") {
+                    val tripId = tripIdParam()
+                    val userId = currentUserId()
+                    val expenseId = uuidParam("expenseId")
+                    val accept = call.request.queryParameters["accept"]?.toBoolean() ?: false
+                    val result = resolveExpenseConflictUseCase.execute(
+                        ResolveExpenseConflictUseCase.Input(
+                            tripId = tripId,
+                            expenseId = expenseId,
+                            resolverUserId = userId,
+                            accept = accept,
+                        )
+                    )
+                    call.respond(HttpStatusCode.OK, result.expense.toResponse(result.splits, null))
+                }
+
+                post("/resolve-merge") {
+                    val tripId = tripIdParam()
+                    val userId = currentUserId()
+                    val expenseId = uuidParam("expenseId")
+                    val req = call.receive<MergeExpenseRequest>()
+                    val result = resolveExpenseConflictMergeUseCase.execute(
+                        ResolveExpenseConflictMergeUseCase.Input(
+                            tripId = tripId,
+                            expenseId = expenseId,
+                            resolverUserId = userId,
+                            title = req.title,
+                            description = req.description,
+                            amount = req.amount?.let { BigDecimal(it) },
+                            currency = req.currency,
+                            category = req.category,
+                            payerUserId = req.payerUserId?.let { UUID.fromString(it) },
+                            expenseDate = req.expenseDate?.let { LocalDate.parse(it) },
+                            splitType = req.splitType?.let { SplitType.valueOf(it) },
+                            splits = req.splits?.map { s ->
+                                CreateExpenseUseCase.SplitInputData(
+                                    participantUserId = UUID.fromString(s.participantUserId),
+                                    value = BigDecimal(s.value),
+                                )
+                            },
+                        )
+                    )
+                    call.respond(HttpStatusCode.OK, result.expense.toResponse(result.splits, null))
+                }
+
+                post("/resolve-revert") {
+                    val tripId = tripIdParam()
+                    val userId = currentUserId()
+                    val expenseId = uuidParam("expenseId")
+                    val result = resolveExpenseConflictRevertUseCase.execute(
+                        ResolveExpenseConflictRevertUseCase.Input(
+                            tripId = tripId,
+                            expenseId = expenseId,
+                            resolverUserId = userId,
+                        )
+                    )
+                    call.respond(HttpStatusCode.OK, result.expense.toResponse(result.splits, null))
                 }
 
                 patch {
@@ -135,7 +214,7 @@ fun Route.expenseRoutes() {
                             expectedVersion = req.expectedVersion ?: 0L
                         )
                     )
-                    call.respond(HttpStatusCode.OK, result.expense.toResponse(result.splits))
+                    call.respond(HttpStatusCode.OK, result.expense.toResponse(result.splits, null))
                 }
 
                 delete {
@@ -156,7 +235,11 @@ fun Route.expenseRoutes() {
     }
 }
 
-private fun Expense.toResponse(splits: List<ExpenseSplit>) = ExpenseResponse(
+private fun Expense.toResponse(
+    splits: List<ExpenseSplit>,
+    pending: ExpensePendingUpdate?,
+    baseSnapshot: String? = null,
+) = ExpenseResponse(
     id = id.toString(),
     tripId = tripId.toString(),
     payerUserId = payerUserId.toString(),
@@ -172,7 +255,17 @@ private fun Expense.toResponse(splits: List<ExpenseSplit>) = ExpenseResponse(
     createdAt = createdAt.toString(),
     updatedAt = updatedAt.toString(),
     version = version,
-    deletedAt = deletedAt?.toString()
+    deletedAt = deletedAt?.toString(),
+    pendingUpdate = pending?.toResponse(baseSnapshot),
+)
+
+private fun ExpensePendingUpdate.toResponse(baseSnapshot: String? = null) = ExpensePendingUpdateResponse(
+    expenseId = expenseId.toString(),
+    proposedByUserId = proposedByUserId.toString(),
+    proposedAt = proposedAt.toString(),
+    baseVersion = baseVersion,
+    payload = payload,
+    baseSnapshot = baseSnapshot,
 )
 
 private fun ExpenseSplit.toResponse() = ExpenseSplitResponse(

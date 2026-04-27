@@ -16,6 +16,7 @@ object TripsTable : Table("trips") {
     val totalBudget = decimal("total_budget", 18, 2).default(BigDecimal.ZERO)
     val destination = varchar("destination", 255).default("")
     val imageUrl = text("image_url").nullable()
+    val joinCode = varchar("join_code", 8).default("")
     val status = varchar("status", 20).default("ACTIVE")
     val createdBy = uuid("created_by").references(
         UsersTable.id,

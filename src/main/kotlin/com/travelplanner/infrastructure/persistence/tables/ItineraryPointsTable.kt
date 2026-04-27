@@ -13,6 +13,7 @@ object ItineraryPointsTable : Table("itinerary_points") {
     val description = text("description").nullable()
     val subtitle = varchar("subtitle", 500).nullable()
     val type = varchar("type", 50).nullable()
+    val category = varchar("category", 50).nullable()
     val date = date("date").nullable()
     val dayIndex = integer("day_index").default(0)
     val startTime = time("start_time").nullable()

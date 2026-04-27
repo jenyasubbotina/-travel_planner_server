@@ -12,6 +12,7 @@ data class ItineraryPoint(
     val description: String? = null,
     val subtitle: String? = null,
     val type: String? = null,
+    val category: String? = null,
     val date: LocalDate? = null,
     val dayIndex: Int = 0,
     val startTime: LocalTime? = null,
@@ -36,5 +37,7 @@ enum class ItineraryPointStatus {
     NONE,
     PLANNED,
     CONFIRMED,
+    BOOKED,
+    PAID,
     CANCELLED
 }

@@ -1,5 +1,6 @@
 package com.travelplanner.application.usecase.itinerary
 
+import com.travelplanner.domain.event.HistoryPayload
 import com.travelplanner.domain.exception.DomainException
 import com.travelplanner.domain.model.DomainEvent
 import com.travelplanner.domain.repository.DomainEventRepository
@@ -47,13 +48,16 @@ class ReorderItineraryUseCase(
         domainEventRepository.save(
             DomainEvent(
                 id = UUID.randomUUID(),
-                eventType = "ITINERARY_UPDATED",
+                eventType = "ITINERARY_REORDERED",
                 aggregateType = "TRIP",
                 aggregateId = input.tripId,
-                payload = buildJsonObject {
-                    put("actorUserId", input.userId.toString())
-                    put("change", "REORDERED")
-                }.toString(),
+                payload = HistoryPayload.build(
+                    actorUserId = input.userId,
+                    entityType = HistoryPayload.EntityType.TRIP,
+                    entityId = input.tripId,
+                    actionType = HistoryPayload.ActionType.REORDER_ITINERARY,
+                    context = buildJsonObject { put("count", input.orders.size) },
+                ),
                 createdAt = Instant.now()
             )
         )

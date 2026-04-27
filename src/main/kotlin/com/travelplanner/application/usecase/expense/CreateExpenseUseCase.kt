@@ -1,8 +1,10 @@
 package com.travelplanner.application.usecase.expense
 
+import com.travelplanner.domain.event.HistoryPayload
 import com.travelplanner.domain.exception.DomainException
 import com.travelplanner.domain.model.DomainEvent
 import com.travelplanner.domain.model.Expense
+import com.travelplanner.domain.model.ExpenseHistoryEntry
 import com.travelplanner.domain.model.ExpenseSplit
 import com.travelplanner.domain.model.SplitType
 import com.travelplanner.domain.model.TripStatus
@@ -13,8 +15,6 @@ import com.travelplanner.domain.repository.TransactionRunner
 import com.travelplanner.domain.repository.TripRepository
 import com.travelplanner.domain.validation.ExpenseSplitValidator
 import com.travelplanner.domain.validation.SplitInput
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
 import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
@@ -131,17 +131,31 @@ class CreateExpenseUseCase(
 
         expenseRepository.replaceSplits(expenseId, expenseSplits)
 
+        val snapshot = HistoryPayload.expenseSnapshot(createdExpense, expenseSplits)
+
+        expenseRepository.appendHistory(
+            ExpenseHistoryEntry(
+                expenseId = createdExpense.id,
+                version = createdExpense.version,
+                snapshot = snapshot.toString(),
+                editedByUserId = input.userId,
+                editedAt = now,
+            )
+        )
+
         domainEventRepository.save(
             DomainEvent(
                 id = UUID.randomUUID(),
                 eventType = "EXPENSE_CREATED",
                 aggregateType = "TRIP",
                 aggregateId = input.tripId,
-                payload = buildJsonObject {
-                    put("actorUserId", input.userId.toString())
-                    put("expenseId", createdExpense.id.toString())
-                    put("description", createdExpense.title)
-                }.toString(),
+                payload = HistoryPayload.build(
+                    actorUserId = input.userId,
+                    entityType = HistoryPayload.EntityType.EXPENSE,
+                    entityId = createdExpense.id,
+                    actionType = HistoryPayload.ActionType.CREATE,
+                    entity = snapshot,
+                ),
                 createdAt = now
             )
         )

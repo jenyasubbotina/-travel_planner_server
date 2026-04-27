@@ -93,6 +93,7 @@ data class CreateItineraryPointRequest(
     val description: String? = null,
     val subtitle: String? = null,
     val type: String? = null,
+    val category: String? = null,
     val date: String? = null,
     val dayIndex: Int? = null,
     val startTime: String? = null,
@@ -114,6 +115,7 @@ data class UpdateItineraryPointRequest(
     val description: String? = null,
     val subtitle: String? = null,
     val type: String? = null,
+    val category: String? = null,
     val date: String? = null,
     val dayIndex: Int? = null,
     val startTime: String? = null,
@@ -128,6 +130,36 @@ data class UpdateItineraryPointRequest(
     val participantIds: List<String>? = null,
     val expectedVersion: Long? = null,
     val clientMutationId: String? = null
+)
+
+@Serializable
+data class AddPointLinkRequest(
+    val title: String,
+    val url: String,
+)
+
+@Serializable
+data class AddPointCommentRequest(
+    val text: String,
+)
+
+// ──────────────────────────────────────────────
+// Checklist
+// ──────────────────────────────────────────────
+
+@Serializable
+data class CreateChecklistItemRequest(
+    val title: String,
+    val isGroup: Boolean = false,
+)
+
+// ──────────────────────────────────────────────
+// Join by code
+// ──────────────────────────────────────────────
+
+@Serializable
+data class JoinByCodeRequest(
+    val code: String,
 )
 
 @Serializable
@@ -179,6 +211,20 @@ data class UpdateExpenseRequest(
 data class ExpenseSplitRequest(
     val participantUserId: String,
     val value: String
+)
+
+@Serializable
+data class MergeExpenseRequest(
+    val title: String? = null,
+    val description: String? = null,
+    val amount: String? = null,
+    val currency: String? = null,
+    val category: String? = null,
+    val payerUserId: String? = null,
+    val expenseDate: String? = null,
+    val splitType: String? = null,
+    val splits: List<ExpenseSplitRequest>? = null,
+    val clientMutationId: String? = null,
 )
 
 // ──────────────────────────────────────────────

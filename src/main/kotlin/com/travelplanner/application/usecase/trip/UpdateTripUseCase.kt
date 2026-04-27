@@ -1,5 +1,6 @@
 package com.travelplanner.application.usecase.trip
 
+import com.travelplanner.domain.event.HistoryPayload
 import com.travelplanner.domain.exception.DomainException
 import com.travelplanner.domain.model.DomainEvent
 import com.travelplanner.domain.model.Trip
@@ -9,8 +10,6 @@ import com.travelplanner.domain.repository.ParticipantRepository
 import com.travelplanner.domain.repository.TransactionRunner
 import com.travelplanner.domain.repository.TripRepository
 import com.travelplanner.domain.validation.TripValidator
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
 import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
@@ -80,19 +79,29 @@ class UpdateTripUseCase(
 
         val saved = tripRepository.update(updated)
 
-        domainEventRepository.save(
-            DomainEvent(
-                id = UUID.randomUUID(),
-                eventType = "TRIP_UPDATED",
-                aggregateType = "TRIP",
-                aggregateId = saved.id,
-                payload = buildJsonObject {
-                    put("actorUserId", input.userId.toString())
-                    put("tripTitle", saved.title)
-                }.toString(),
-                createdAt = Instant.now()
-            )
+        val diff = HistoryPayload.diff(
+            HistoryPayload.tripSnapshot(trip),
+            HistoryPayload.tripSnapshot(saved),
         )
+        if (diff != null) {
+            domainEventRepository.save(
+                DomainEvent(
+                    id = UUID.randomUUID(),
+                    eventType = "TRIP_UPDATED",
+                    aggregateType = "TRIP",
+                    aggregateId = saved.id,
+                    payload = HistoryPayload.build(
+                        actorUserId = input.userId,
+                        entityType = HistoryPayload.EntityType.TRIP,
+                        entityId = saved.id,
+                        actionType = HistoryPayload.ActionType.UPDATE,
+                        old = diff.first,
+                        new = diff.second,
+                    ),
+                    createdAt = Instant.now()
+                )
+            )
+        }
 
         saved
     }
