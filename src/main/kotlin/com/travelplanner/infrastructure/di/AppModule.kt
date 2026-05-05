@@ -213,9 +213,9 @@ val appModule = module {
     }
     single { DeleteExpenseUseCase(get(), get(), get(), get()) }
     single { ListExpensesUseCase(get(), get()) }
-    single { ResolveExpenseConflictUseCase(get(), get(), get(), get(), get()) }
+    single { ResolveExpenseConflictUseCase(get(), get(), get(), get(), get(), get()) }
     single { ResolveExpenseConflictMergeUseCase(get(), get(), get(), get(), get(), get()) }
-    single { ResolveExpenseConflictRevertUseCase(get(), get(), get(), get(), get()) }
+    single { ResolveExpenseConflictRevertUseCase(get(), get(), get(), get(), get(), get()) }
 
     // ──────────────────────────────────────────────
     // Use Cases — Analytics
