@@ -22,12 +22,13 @@ object DatabaseFactory {
         }
         val dataSource = HikariDataSource(hikariConfig)
 
-        Flyway.configure()
+        val flyway = Flyway.configure()
             .dataSource(dataSource)
             .locations("classpath:db/migration")
             .outOfOrder(true)
             .load()
-            .migrate()
+        flyway.repair()
+        flyway.migrate()
 
         Database.connect(dataSource)
     }

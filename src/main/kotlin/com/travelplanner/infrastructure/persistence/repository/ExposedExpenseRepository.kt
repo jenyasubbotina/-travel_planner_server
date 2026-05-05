@@ -87,7 +87,7 @@ class ExposedExpenseRepository : ExpenseRepository {
         ExpensesTable.selectAll()
             .where {
                 (ExpensesTable.tripId eq tripId) and
-                    (ExpensesTable.updatedAt greater after)
+                        (ExpensesTable.updatedAt greater after)
             }
             .map { it.toExpense() }
     }
@@ -133,7 +133,7 @@ class ExposedExpenseRepository : ExpenseRepository {
             .select(ExpensesTable.id)
             .where {
                 (ExpensesTable.tripId eq tripId) and
-                    (ExpensesTable.updatedAt greater after)
+                        (ExpensesTable.updatedAt greater after)
             }
             .map { it[ExpensesTable.id] }
 
@@ -196,10 +196,19 @@ class ExposedExpenseRepository : ExpenseRepository {
                 it[payload] = pending.payload
             }
         }
+        ExpensesTable.update({ ExpensesTable.id eq pending.expenseId }) {
+            it[updatedAt] = Instant.now()
+        }
     }
 
     override suspend fun deletePendingUpdate(expenseId: UUID): Boolean = dbQuery {
-        ExpensePendingUpdatesTable.deleteWhere { ExpensePendingUpdatesTable.expenseId eq expenseId } > 0
+        val deleted = ExpensePendingUpdatesTable.deleteWhere { ExpensePendingUpdatesTable.expenseId eq expenseId } > 0
+        if (deleted) {
+            ExpensesTable.update({ ExpensesTable.id eq expenseId }) {
+                it[updatedAt] = Instant.now()
+            }
+        }
+        deleted
     }
 
     override suspend fun findPendingUpdatesByTrip(tripId: UUID): List<ExpensePendingUpdate> = dbQuery {
@@ -226,7 +235,7 @@ class ExposedExpenseRepository : ExpenseRepository {
     override suspend fun appendHistory(entry: ExpenseHistoryEntry): Unit = dbQuery {
         val updated = ExpenseHistoryTable.update({
             (ExpenseHistoryTable.expenseId eq entry.expenseId) and
-                (ExpenseHistoryTable.version eq entry.version)
+                    (ExpenseHistoryTable.version eq entry.version)
         }) {
             it[snapshot] = entry.snapshot
             it[editedByUserId] = entry.editedByUserId
@@ -247,7 +256,7 @@ class ExposedExpenseRepository : ExpenseRepository {
         ExpenseHistoryTable.selectAll()
             .where {
                 (ExpenseHistoryTable.expenseId eq expenseId) and
-                    (ExpenseHistoryTable.version eq version)
+                        (ExpenseHistoryTable.version eq version)
             }
             .singleOrNull()
             ?.toHistoryEntry()
