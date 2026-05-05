@@ -68,7 +68,10 @@ data class ParticipantResponse(
     val tripId: String,
     val userId: String,
     val role: String,
-    val joinedAt: String
+    val joinedAt: String,
+    val updatedAt: String,
+    val version: Long,
+    val deletedAt: String? = null,
 )
 
 @Serializable
@@ -78,7 +81,8 @@ data class ParticipantDetailResponse(
     val displayName: String,
     val avatarUrl: String? = null,
     val role: String,
-    val joinedAt: String
+    val joinedAt: String,
+    val version: Long,
 )
 
 @Serializable
@@ -288,7 +292,8 @@ data class AttachmentResponse(
 @Serializable
 data class PresignedUploadResponse(
     val uploadUrl: String,
-    val s3Key: String
+    val s3Key: String,
+    val attachmentId: String,
 )
 
 @Serializable

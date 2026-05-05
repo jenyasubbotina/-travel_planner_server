@@ -1,6 +1,7 @@
 package com.travelplanner.application.usecase.trip
 
 import com.travelplanner.domain.event.HistoryPayload
+import com.travelplanner.domain.exception.DomainException
 import com.travelplanner.domain.model.DomainEvent
 import com.travelplanner.domain.model.Trip
 import com.travelplanner.domain.model.TripParticipant
@@ -33,7 +34,8 @@ class CreateTripUseCase(
         val totalBudget: BigDecimal = BigDecimal.ZERO,
         val destination: String = "",
         val imageUrl: String? = null,
-        val userId: UUID
+        val userId: UUID,
+        val id: UUID? = null,
     )
 
     suspend fun execute(input: Input): Trip = transactionRunner.runInTransaction {
@@ -41,10 +43,15 @@ class CreateTripUseCase(
         TripValidator.validateDates(input.startDate, input.endDate)
         TripValidator.validateCurrency(input.baseCurrency)
 
+        val tripId = input.id ?: UUID.randomUUID()
+        if (input.id != null && tripRepository.findById(tripId) != null) {
+            throw DomainException.DuplicateId("Trip", tripId)
+        }
+
         val now = Instant.now()
         val joinCode = generateUniqueJoinCode()
         val trip = Trip(
-            id = UUID.randomUUID(),
+            id = tripId,
             title = input.title.trim(),
             description = input.description?.trim(),
             startDate = input.startDate,

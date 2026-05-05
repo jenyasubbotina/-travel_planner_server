@@ -18,7 +18,10 @@ class ExposedSyncRepository : SyncRepository {
             ?: return@dbQuery null
 
         val participants = TripParticipantsTable.selectAll()
-            .where { TripParticipantsTable.tripId eq tripId }
+            .where {
+                (TripParticipantsTable.tripId eq tripId) and
+                        TripParticipantsTable.deletedAt.isNull()
+            }
             .map { it.toTripParticipant() }
 
         val itineraryRows = ItineraryPointsTable.selectAll()
@@ -88,7 +91,7 @@ class ExposedSyncRepository : SyncRepository {
         val participants = TripParticipantsTable.selectAll()
             .where {
                 (TripParticipantsTable.tripId eq tripId) and
-                        (TripParticipantsTable.joinedAt greater after)
+                        (TripParticipantsTable.updatedAt greater after)
             }
             .map { it.toTripParticipant() }
 
@@ -350,7 +353,10 @@ class ExposedSyncRepository : SyncRepository {
         tripId = this[TripParticipantsTable.tripId],
         userId = this[TripParticipantsTable.userId],
         role = TripRole.valueOf(this[TripParticipantsTable.role]),
-        joinedAt = this[TripParticipantsTable.joinedAt]
+        joinedAt = this[TripParticipantsTable.joinedAt],
+        updatedAt = this[TripParticipantsTable.updatedAt],
+        version = this[TripParticipantsTable.version],
+        deletedAt = this[TripParticipantsTable.deletedAt],
     )
 
     private fun loadItineraryParticipants(pointIds: List<UUID>): Map<UUID, List<UUID>> {

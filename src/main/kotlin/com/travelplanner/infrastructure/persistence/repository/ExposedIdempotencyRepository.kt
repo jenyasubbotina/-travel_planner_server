@@ -8,14 +8,16 @@ import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
 import java.time.Instant
 import java.time.temporal.ChronoUnit
+import java.util.UUID
 
 class ExposedIdempotencyRepository : IdempotencyRepository {
 
-    override suspend fun find(key: String): IdempotencyRecord? = dbQuery {
+    override suspend fun find(key: String, userId: UUID): IdempotencyRecord? = dbQuery {
         val now = Instant.now()
         IdempotencyKeysTable.selectAll()
             .where {
                 (IdempotencyKeysTable.key eq key) and
+                    (IdempotencyKeysTable.userId eq userId) and
                     (IdempotencyKeysTable.expiresAt greater now)
             }
             .singleOrNull()
@@ -24,7 +26,7 @@ class ExposedIdempotencyRepository : IdempotencyRepository {
 
     override suspend fun save(record: IdempotencyRecord): Unit = dbQuery {
         val now = Instant.now()
-        val expiresAt = now.plus(24, ChronoUnit.HOURS)
+        val expiresAt = now.plus(7, ChronoUnit.DAYS)
         IdempotencyKeysTable.insert {
             it[key] = record.key
             it[userId] = record.userId

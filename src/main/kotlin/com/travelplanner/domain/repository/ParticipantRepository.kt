@@ -11,8 +11,8 @@ interface ParticipantRepository {
     suspend fun findByTripAndUser(tripId: UUID, userId: UUID): TripParticipant?
     suspend fun findTripsByUser(userId: UUID): List<UUID>
     suspend fun add(participant: TripParticipant)
-    suspend fun updateRole(tripId: UUID, userId: UUID, role: TripRole): Boolean
-    suspend fun remove(tripId: UUID, userId: UUID): Boolean
+    suspend fun updateRole(tripId: UUID, userId: UUID, role: TripRole, expectedVersion: Long): TripParticipant
+    suspend fun softDelete(tripId: UUID, userId: UUID, expectedVersion: Long): TripParticipant
     suspend fun isParticipant(tripId: UUID, userId: UUID): Boolean
     suspend fun getUserIdsForTrip(tripId: UUID): List<UUID>
 

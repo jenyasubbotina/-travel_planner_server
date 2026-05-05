@@ -24,6 +24,7 @@ class AddItineraryPointCommentUseCase(
         val pointId: UUID,
         val userId: UUID,
         val text: String,
+        val id: UUID? = null,
     )
 
     suspend fun execute(input: Input): ItineraryPointComment = transactionRunner.runInTransaction {
@@ -41,9 +42,11 @@ class AddItineraryPointCommentUseCase(
         participantRepository.findByTripAndUser(point.tripId, input.userId)
             ?: throw DomainException.AccessDenied("User is not a participant of this trip")
 
+        val commentId = input.id ?: UUID.randomUUID()
+
         val now = Instant.now()
         val comment = ItineraryPointComment(
-            id = UUID.randomUUID(),
+            id = commentId,
             pointId = input.pointId,
             authorUserId = input.userId,
             text = text,

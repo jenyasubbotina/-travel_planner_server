@@ -26,6 +26,7 @@ import io.ktor.server.routing.route
 import org.koin.ktor.ext.inject
 import java.math.BigDecimal
 import java.time.LocalDate
+import java.util.UUID
 
 fun Route.tripRoutes() {
     val createTripUseCase by inject<CreateTripUseCase>()
@@ -56,7 +57,8 @@ fun Route.tripRoutes() {
                         totalBudget = req.totalBudget?.let { BigDecimal(it) } ?: BigDecimal.ZERO,
                         destination = req.destination.orEmpty(),
                         imageUrl = req.imageUrl,
-                        userId = userId
+                        userId = userId,
+                        id = req.id?.let(UUID::fromString),
                     )
                 )
                 call.respond(HttpStatusCode.Created, trip.toResponse())

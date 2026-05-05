@@ -49,14 +49,16 @@ fun Route.attachmentRoutes() {
                         userId = userId,
                         fileName = req.fileName,
                         contentType = req.contentType,
-                        fileSize = req.fileSize
+                        fileSize = req.fileSize,
+                        attachmentId = req.attachmentId?.let(UUID::fromString),
                     )
                 )
                 call.respond(
                     HttpStatusCode.OK,
                     PresignedUploadResponse(
                         uploadUrl = result.presignedUrl,
-                        s3Key = result.s3Key
+                        s3Key = result.s3Key,
+                        attachmentId = result.attachmentId.toString(),
                     )
                 )
             }
@@ -120,7 +122,8 @@ fun Route.attachmentRoutes() {
                         fileName = req.fileName,
                         fileSize = req.fileSize,
                         mimeType = req.mimeType,
-                        s3Key = req.s3Key
+                        s3Key = req.s3Key,
+                        id = req.id?.let(UUID::fromString),
                     )
                 )
                 call.respond(HttpStatusCode.Created, attachment.toResponse())
@@ -141,7 +144,8 @@ fun Route.attachmentRoutes() {
                         fileName = req.fileName,
                         fileSize = req.fileSize,
                         mimeType = req.mimeType,
-                        s3Key = req.s3Key
+                        s3Key = req.s3Key,
+                        id = req.id?.let(UUID::fromString),
                     )
                 )
                 call.respond(HttpStatusCode.Created, attachment.toResponse())
@@ -162,7 +166,8 @@ fun Route.attachmentRoutes() {
                         fileName = req.fileName,
                         fileSize = req.fileSize,
                         mimeType = req.mimeType,
-                        s3Key = req.s3Key
+                        s3Key = req.s3Key,
+                        id = req.id?.let(UUID::fromString),
                     )
                 )
                 call.respond(HttpStatusCode.Created, attachment.toResponse())

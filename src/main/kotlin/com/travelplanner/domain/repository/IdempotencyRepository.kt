@@ -10,7 +10,7 @@ data class IdempotencyRecord(
 )
 
 interface IdempotencyRepository {
-    suspend fun find(key: String): IdempotencyRecord?
+    suspend fun find(key: String, userId: UUID): IdempotencyRecord?
     suspend fun save(record: IdempotencyRecord)
     suspend fun cleanExpired()
 }

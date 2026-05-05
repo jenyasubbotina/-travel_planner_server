@@ -128,7 +128,10 @@ private fun TripParticipant.toSyncResponse() = ParticipantResponse(
     tripId = tripId.toString(),
     userId = userId.toString(),
     role = role.name,
-    joinedAt = joinedAt.toString()
+    joinedAt = joinedAt.toString(),
+    updatedAt = updatedAt.toString(),
+    version = version,
+    deletedAt = deletedAt?.toString(),
 )
 
 private fun Expense.toSyncResponse(

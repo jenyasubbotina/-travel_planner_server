@@ -96,7 +96,8 @@ fun Route.itineraryRoutes() {
                             ?: ItineraryPointStatus.NONE,
                         participantIds = req.participantIds
                             ?.map { UUID.fromString(it) }
-                            .orEmpty()
+                            .orEmpty(),
+                        id = req.id?.let(UUID::fromString),
                     )
                 )
                 call.respond(HttpStatusCode.Created, point.toResponse())
@@ -237,6 +238,7 @@ fun Route.itineraryRoutes() {
                             pointId = pointId,
                             userId = userId,
                             text = req.text,
+                            id = req.id?.let(UUID::fromString),
                         )
                     )
                     val authorName = userRepository.findById(comment.authorUserId)?.displayName ?: ""

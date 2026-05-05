@@ -39,7 +39,8 @@ class CreateExpenseUseCase(
         val expenseDate: LocalDate,
         val splitType: SplitType = SplitType.EQUAL,
         val payerUserId: UUID,
-        val splits: List<SplitInputData>
+        val splits: List<SplitInputData>,
+        val id: UUID? = null,
     )
 
     data class SplitInputData(
@@ -97,8 +98,12 @@ class CreateExpenseUseCase(
             tripParticipantIds = tripParticipantIds
         )
 
+        val expenseId = input.id ?: UUID.randomUUID()
+        if (input.id != null && expenseRepository.findById(expenseId) != null) {
+            throw DomainException.DuplicateId("Expense", expenseId)
+        }
+
         val now = Instant.now()
-        val expenseId = UUID.randomUUID()
         val expense = Expense(
             id = expenseId,
             tripId = input.tripId,

@@ -48,7 +48,8 @@ data class CreateTripRequest(
     val totalBudget: String? = null,
     val destination: String? = null,
     val imageUrl: String? = null,
-    val clientMutationId: String? = null
+    val id: String? = null,
+    val clientMutationId: String? = null,
 )
 
 @Serializable
@@ -80,7 +81,8 @@ data class InviteParticipantRequest(
 @Serializable
 data class ChangeRoleRequest(
     val role: String,
-    val clientMutationId: String? = null
+    val expectedVersion: Long? = null,
+    val clientMutationId: String? = null,
 )
 
 // ──────────────────────────────────────────────
@@ -106,7 +108,8 @@ data class CreateItineraryPointRequest(
     val actualCost: Double? = null,
     val status: String? = null,
     val participantIds: List<String>? = null,
-    val clientMutationId: String? = null
+    val id: String? = null,
+    val clientMutationId: String? = null,
 )
 
 @Serializable
@@ -141,6 +144,8 @@ data class AddPointLinkRequest(
 @Serializable
 data class AddPointCommentRequest(
     val text: String,
+    val id: String? = null,
+    val clientMutationId: String? = null,
 )
 
 // ──────────────────────────────────────────────
@@ -151,6 +156,8 @@ data class AddPointCommentRequest(
 data class CreateChecklistItemRequest(
     val title: String,
     val isGroup: Boolean = false,
+    val id: String? = null,
+    val clientMutationId: String? = null,
 )
 
 // ──────────────────────────────────────────────
@@ -189,7 +196,8 @@ data class CreateExpenseRequest(
     val expenseDate: String,
     val splitType: String = "EQUAL",
     val splits: List<ExpenseSplitRequest>,
-    val clientMutationId: String? = null
+    val id: String? = null,
+    val clientMutationId: String? = null,
 )
 
 @Serializable
@@ -236,7 +244,8 @@ data class PresignUploadRequest(
     val fileName: String,
     val contentType: String,
     val fileSize: Long,
-    val tripId: String
+    val tripId: String,
+    val attachmentId: String? = null,
 )
 
 @Serializable
@@ -250,5 +259,6 @@ data class CreateAttachmentRequest(
     val fileSize: Long,
     val mimeType: String,
     val s3Key: String,
-    val clientMutationId: String? = null
+    val id: String? = null,
+    val clientMutationId: String? = null,
 )

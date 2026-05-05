@@ -15,6 +15,9 @@ object TripParticipantsTable : Table("trip_participants") {
     )
     val role = varchar("role", 20).default("EDITOR")
     val joinedAt = timestamp("joined_at")
+    val updatedAt = timestamp("updated_at")
+    val version = long("version").default(1L)
+    val deletedAt = timestamp("deleted_at").nullable()
 
     override val primaryKey = PrimaryKey(tripId, userId)
 }
