@@ -23,6 +23,7 @@ class CreateChecklistItemUseCase(
         val userId: UUID,
         val title: String,
         val isGroup: Boolean,
+        val id: UUID? = null,
     )
 
     suspend fun execute(input: Input): ChecklistItem = transactionRunner.runInTransaction {
@@ -37,9 +38,14 @@ class CreateChecklistItemUseCase(
             throw DomainException.InsufficientRole("EDITOR")
         }
 
+        val itemId = input.id ?: UUID.randomUUID()
+        if (input.id != null && checklistRepository.findById(itemId) != null) {
+            throw DomainException.DuplicateId("ChecklistItem", itemId)
+        }
+
         val now = Instant.now()
         val item = ChecklistItem(
-            id = UUID.randomUUID(),
+            id = itemId,
             tripId = input.tripId,
             title = title,
             isGroup = input.isGroup,

@@ -20,7 +20,10 @@ class ExposedParticipantRepository : ParticipantRepository {
 
     override suspend fun findByTrip(tripId: UUID): List<TripParticipant> = dbQuery {
         TripParticipantsTable.selectAll()
-            .where { TripParticipantsTable.tripId eq tripId }
+            .where {
+                (TripParticipantsTable.tripId eq tripId) and
+                        TripParticipantsTable.deletedAt.isNull()
+            }
             .map { it.toTripParticipant() }
     }
 
@@ -28,7 +31,8 @@ class ExposedParticipantRepository : ParticipantRepository {
         TripParticipantsTable.selectAll()
             .where {
                 (TripParticipantsTable.tripId eq tripId) and
-                    (TripParticipantsTable.userId eq userId)
+                        (TripParticipantsTable.userId eq userId) and
+                        TripParticipantsTable.deletedAt.isNull()
             }
             .singleOrNull()
             ?.toTripParticipant()
@@ -37,42 +41,128 @@ class ExposedParticipantRepository : ParticipantRepository {
     override suspend fun findTripsByUser(userId: UUID): List<UUID> = dbQuery {
         TripParticipantsTable
             .select(TripParticipantsTable.tripId)
-            .where { TripParticipantsTable.userId eq userId }
+            .where {
+                (TripParticipantsTable.userId eq userId) and
+                        TripParticipantsTable.deletedAt.isNull()
+            }
             .map { it[TripParticipantsTable.tripId] }
     }
 
     override suspend fun add(participant: TripParticipant): Unit = dbQuery {
-        TripParticipantsTable.insert {
-            it[tripId] = participant.tripId
-            it[userId] = participant.userId
+        val existing = TripParticipantsTable.selectAll()
+            .where {
+                (TripParticipantsTable.tripId eq participant.tripId) and
+                        (TripParticipantsTable.userId eq participant.userId)
+            }
+            .singleOrNull()
+
+        if (existing == null) {
+            TripParticipantsTable.insert {
+                it[tripId] = participant.tripId
+                it[userId] = participant.userId
+                it[role] = participant.role.name
+                it[joinedAt] = participant.joinedAt
+                it[updatedAt] = participant.updatedAt
+                it[version] = participant.version
+                it[deletedAt] = participant.deletedAt
+            }
+            return@dbQuery
+        }
+
+        if (existing[TripParticipantsTable.deletedAt] == null) {
+            throw DomainException.AlreadyParticipant(participant.userId, participant.tripId)
+        }
+
+        val previousVersion = existing[TripParticipantsTable.version]
+        TripParticipantsTable.update({
+            (TripParticipantsTable.tripId eq participant.tripId) and
+                    (TripParticipantsTable.userId eq participant.userId)
+        }) {
             it[role] = participant.role.name
             it[joinedAt] = participant.joinedAt
+            it[updatedAt] = participant.updatedAt
+            it[version] = previousVersion + 1
+            it[deletedAt] = null
         }
     }
 
-    override suspend fun updateRole(tripId: UUID, userId: UUID, role: TripRole): Boolean = dbQuery {
+    override suspend fun updateRole(
+        tripId: UUID,
+        userId: UUID,
+        role: TripRole,
+        expectedVersion: Long,
+    ): TripParticipant = dbQuery {
+        val now = Instant.now()
         val updatedCount = TripParticipantsTable.update({
             (TripParticipantsTable.tripId eq tripId) and
-                (TripParticipantsTable.userId eq userId)
+                    (TripParticipantsTable.userId eq userId) and
+                    (TripParticipantsTable.version eq expectedVersion) and
+                    TripParticipantsTable.deletedAt.isNull()
         }) {
             it[TripParticipantsTable.role] = role.name
+            it[TripParticipantsTable.version] = expectedVersion + 1
+            it[TripParticipantsTable.updatedAt] = now
         }
-        updatedCount > 0
+        if (updatedCount == 0) {
+            val current = TripParticipantsTable.selectAll()
+                .where {
+                    (TripParticipantsTable.tripId eq tripId) and
+                            (TripParticipantsTable.userId eq userId)
+                }
+                .singleOrNull()
+            if (current == null || current[TripParticipantsTable.deletedAt] != null) {
+                throw DomainException.ParticipantNotInTrip(userId, tripId)
+            }
+            throw DomainException.VersionConflict("Participant", userId)
+        }
+        TripParticipantsTable.selectAll()
+            .where {
+                (TripParticipantsTable.tripId eq tripId) and
+                        (TripParticipantsTable.userId eq userId)
+            }
+            .single()
+            .toTripParticipant()
     }
 
-    override suspend fun remove(tripId: UUID, userId: UUID): Boolean = dbQuery {
-        val deletedCount = TripParticipantsTable.deleteWhere {
+    override suspend fun softDelete(tripId: UUID, userId: UUID, expectedVersion: Long): TripParticipant = dbQuery {
+        val now = Instant.now()
+        val updatedCount = TripParticipantsTable.update({
             (TripParticipantsTable.tripId eq tripId) and
-                (TripParticipantsTable.userId eq userId)
+                    (TripParticipantsTable.userId eq userId) and
+                    (TripParticipantsTable.version eq expectedVersion) and
+                    TripParticipantsTable.deletedAt.isNull()
+        }) {
+            it[TripParticipantsTable.deletedAt] = now
+            it[TripParticipantsTable.version] = expectedVersion + 1
+            it[TripParticipantsTable.updatedAt] = now
         }
-        deletedCount > 0
+        if (updatedCount == 0) {
+            val current = TripParticipantsTable.selectAll()
+                .where {
+                    (TripParticipantsTable.tripId eq tripId) and
+                            (TripParticipantsTable.userId eq userId)
+                }
+                .singleOrNull()
+            if (current == null || current[TripParticipantsTable.deletedAt] != null) {
+                throw DomainException.ParticipantNotInTrip(userId, tripId)
+            }
+            throw DomainException.VersionConflict("Participant", userId)
+        }
+        TripParticipantsTable.selectAll()
+            .where {
+                (TripParticipantsTable.tripId eq tripId) and
+                        (TripParticipantsTable.userId eq userId)
+            }
+            .single()
+            .toTripParticipant()
     }
 
     override suspend fun isParticipant(tripId: UUID, userId: UUID): Boolean = dbQuery {
         TripParticipantsTable.selectAll()
             .where {
                 (TripParticipantsTable.tripId eq tripId) and
-                    (TripParticipantsTable.userId eq userId)
+                        (TripParticipantsTable.userId eq userId) and
+                        TripParticipantsTable.deletedAt.isNull()
             }
             .count() > 0
     }
@@ -80,7 +170,10 @@ class ExposedParticipantRepository : ParticipantRepository {
     override suspend fun getUserIdsForTrip(tripId: UUID): List<UUID> = dbQuery {
         TripParticipantsTable
             .select(TripParticipantsTable.userId)
-            .where { TripParticipantsTable.tripId eq tripId }
+            .where {
+                (TripParticipantsTable.tripId eq tripId) and
+                        TripParticipantsTable.deletedAt.isNull()
+            }
             .map { it[TripParticipantsTable.userId] }
     }
 
@@ -111,7 +204,7 @@ class ExposedParticipantRepository : ParticipantRepository {
         TripInvitationsTable.selectAll()
             .where {
                 (TripInvitationsTable.tripId eq tripId) and
-                    (TripInvitationsTable.status eq InvitationStatus.PENDING.name)
+                        (TripInvitationsTable.status eq InvitationStatus.PENDING.name)
             }
             .map { it.toTripInvitation() }
     }
@@ -120,7 +213,7 @@ class ExposedParticipantRepository : ParticipantRepository {
         TripInvitationsTable.selectAll()
             .where {
                 (TripInvitationsTable.email eq email) and
-                    (TripInvitationsTable.status eq InvitationStatus.PENDING.name)
+                        (TripInvitationsTable.status eq InvitationStatus.PENDING.name)
             }
             .map { it.toTripInvitation() }
     }
@@ -151,20 +244,50 @@ class ExposedParticipantRepository : ParticipantRepository {
         val existingParticipant = TripParticipantsTable.selectAll()
             .where {
                 (TripParticipantsTable.tripId eq invitation.tripId) and
-                    (TripParticipantsTable.userId eq user.id)
+                        (TripParticipantsTable.userId eq user.id)
             }
             .singleOrNull()
 
+        val now = Instant.now()
+
         if (existingParticipant != null) {
-            throw DomainException.AlreadyParticipant(user.id, invitation.tripId)
+            if (existingParticipant[TripParticipantsTable.deletedAt] == null) {
+                throw DomainException.AlreadyParticipant(user.id, invitation.tripId)
+            }
+            val previousVersion = existingParticipant[TripParticipantsTable.version]
+            TripParticipantsTable.update({
+                (TripParticipantsTable.tripId eq invitation.tripId) and
+                        (TripParticipantsTable.userId eq user.id)
+            }) {
+                it[role] = invitation.role.name
+                it[joinedAt] = now
+                it[updatedAt] = now
+                it[version] = previousVersion + 1
+                it[deletedAt] = null
+            }
+            TripInvitationsTable.update({ TripInvitationsTable.id eq invitation.id }) {
+                it[status] = InvitationStatus.ACCEPTED.name
+                it[resolvedAt] = now
+            }
+            return@dbQuery TripParticipant(
+                tripId = invitation.tripId,
+                userId = user.id,
+                role = invitation.role,
+                joinedAt = now,
+                updatedAt = now,
+                version = previousVersion + 1,
+                deletedAt = null,
+            )
         }
 
-        val now = Instant.now()
         val participant = TripParticipant(
             tripId = invitation.tripId,
             userId = user.id,
             role = invitation.role,
-            joinedAt = now
+            joinedAt = now,
+            updatedAt = now,
+            version = 1L,
+            deletedAt = null,
         )
 
         TripInvitationsTable.update({ TripInvitationsTable.id eq invitation.id }) {
@@ -178,6 +301,9 @@ class ExposedParticipantRepository : ParticipantRepository {
                 it[userId] = participant.userId
                 it[role] = participant.role.name
                 it[joinedAt] = participant.joinedAt
+                it[updatedAt] = participant.updatedAt
+                it[version] = participant.version
+                it[deletedAt] = participant.deletedAt
             }
         } catch (cause: ExposedSQLException) {
             if (cause.sqlState == "23505") {
@@ -195,7 +321,10 @@ class ExposedParticipantRepository : ParticipantRepository {
         tripId = this[TripParticipantsTable.tripId],
         userId = this[TripParticipantsTable.userId],
         role = TripRole.valueOf(this[TripParticipantsTable.role]),
-        joinedAt = this[TripParticipantsTable.joinedAt]
+        joinedAt = this[TripParticipantsTable.joinedAt],
+        updatedAt = this[TripParticipantsTable.updatedAt],
+        version = this[TripParticipantsTable.version],
+        deletedAt = this[TripParticipantsTable.deletedAt],
     )
 
     private fun ResultRow.toTripInvitation() = TripInvitation(

@@ -26,7 +26,8 @@ class ChangeRoleUseCase(
         val tripId: UUID,
         val requesterUserId: UUID,
         val targetUserId: UUID,
-        val newRole: TripRole
+        val newRole: TripRole,
+        val expectedVersion: Long? = null,
     )
 
     suspend fun execute(input: Input) = transactionRunner.runInTransaction {
@@ -58,7 +59,8 @@ class ChangeRoleUseCase(
         val previousRole = target.role
         val targetUser = userRepository.findById(input.targetUserId)
 
-        participantRepository.updateRole(input.tripId, input.targetUserId, input.newRole)
+        val expectedVersion = input.expectedVersion ?: target.version
+        participantRepository.updateRole(input.tripId, input.targetUserId, input.newRole, expectedVersion)
 
         domainEventRepository.save(
             DomainEvent(

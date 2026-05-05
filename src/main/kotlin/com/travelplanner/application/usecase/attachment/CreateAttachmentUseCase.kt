@@ -28,7 +28,8 @@ class CreateAttachmentUseCase(
         val fileName: String,
         val fileSize: Long,
         val mimeType: String,
-        val s3Key: String
+        val s3Key: String,
+        val id: UUID? = null,
     )
 
     suspend fun execute(input: Input): Attachment {
@@ -65,9 +66,14 @@ class CreateAttachmentUseCase(
             }
         }
 
+        val attachmentId = input.id ?: UUID.randomUUID()
+        if (input.id != null && attachmentRepository.findById(attachmentId) != null) {
+            throw DomainException.DuplicateId("Attachment", attachmentId)
+        }
+
         val now = Instant.now()
         val attachment = Attachment(
-            id = UUID.randomUUID(),
+            id = attachmentId,
             tripId = input.tripId,
             expenseId = input.expenseId,
             pointId = input.pointId,

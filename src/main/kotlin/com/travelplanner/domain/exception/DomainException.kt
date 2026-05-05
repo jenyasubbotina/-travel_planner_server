@@ -30,6 +30,7 @@ sealed class DomainException(override val message: String, val code: String) : R
 
     // Conflict
     class VersionConflict(entity: String, id: UUID) : DomainException("Version conflict for $entity $id", "VERSION_CONFLICT")
+    class DuplicateId(entity: String, id: UUID) : DomainException("$entity with id $id already exists", "DUPLICATE_ID")
     class IdempotencyConflict(key: String) : DomainException("Duplicate mutation: $key", "IDEMPOTENCY_CONFLICT")
     class InvitationAlreadyResolved(id: UUID) : DomainException("Invitation $id already resolved", "INVITATION_ALREADY_RESOLVED")
     class PendingUpdateStored(val expenseId: UUID) : DomainException("Conflicting edit stored as pending", "PENDING_UPDATE_STORED")

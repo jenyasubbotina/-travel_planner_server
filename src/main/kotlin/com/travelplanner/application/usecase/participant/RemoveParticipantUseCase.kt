@@ -24,7 +24,8 @@ class RemoveParticipantUseCase(
     data class Input(
         val tripId: UUID,
         val requesterUserId: UUID,
-        val targetUserId: UUID
+        val targetUserId: UUID,
+        val expectedVersion: Long? = null,
     )
 
     suspend fun execute(input: Input) = transactionRunner.runInTransaction {
@@ -51,7 +52,8 @@ class RemoveParticipantUseCase(
 
         val targetUser = userRepository.findById(input.targetUserId)
 
-        participantRepository.remove(input.tripId, input.targetUserId)
+        val expectedVersion = input.expectedVersion ?: target.version
+        participantRepository.softDelete(input.tripId, input.targetUserId, expectedVersion)
 
         domainEventRepository.save(
             DomainEvent(

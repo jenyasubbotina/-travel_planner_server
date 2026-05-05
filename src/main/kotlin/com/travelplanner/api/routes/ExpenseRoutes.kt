@@ -107,7 +107,8 @@ fun Route.expenseRoutes() {
                                 participantUserId = UUID.fromString(s.participantUserId),
                                 value = BigDecimal(s.value)
                             )
-                        }
+                        },
+                        id = req.id?.let(UUID::fromString),
                     )
                 )
                 call.respond(HttpStatusCode.Created, result.expense.toResponse(result.splits, null))

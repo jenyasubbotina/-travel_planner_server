@@ -53,7 +53,8 @@ fun Route.participantRoutes() {
                         displayName = user?.displayName ?: "",
                         avatarUrl = user?.avatarUrl,
                         role = p.role.name,
-                        joinedAt = p.joinedAt.toString()
+                        joinedAt = p.joinedAt.toString(),
+                        version = p.version,
                     )
                 }
                 call.respond(HttpStatusCode.OK, details)
@@ -98,7 +99,8 @@ fun Route.participantRoutes() {
                         tripId = tripId,
                         requesterUserId = requesterId,
                         targetUserId = targetUserId,
-                        newRole = TripRole.valueOf(req.role)
+                        newRole = TripRole.valueOf(req.role),
+                        expectedVersion = req.expectedVersion,
                     )
                 )
                 call.respond(HttpStatusCode.OK, mapOf("message" to "Role updated"))
@@ -135,7 +137,10 @@ private fun TripParticipant.toResponse() = ParticipantResponse(
     tripId = tripId.toString(),
     userId = userId.toString(),
     role = role.name,
-    joinedAt = joinedAt.toString()
+    joinedAt = joinedAt.toString(),
+    updatedAt = updatedAt.toString(),
+    version = version,
+    deletedAt = deletedAt?.toString(),
 )
 
 private fun TripInvitation.toResponse() = InvitationResponse(

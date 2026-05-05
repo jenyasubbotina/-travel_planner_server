@@ -43,7 +43,8 @@ class CreateItineraryPointUseCase(
         val cost: Double? = null,
         val actualCost: Double? = null,
         val status: ItineraryPointStatus = ItineraryPointStatus.NONE,
-        val participantIds: List<UUID> = emptyList()
+        val participantIds: List<UUID> = emptyList(),
+        val id: UUID? = null,
     )
 
     suspend fun execute(input: Input): ItineraryPoint = transactionRunner.runInTransaction {
@@ -85,9 +86,14 @@ class CreateItineraryPointUseCase(
             .maxOfOrNull { it.sortOrder } ?: 0
         val nextSortOrder = maxSortOrder + 1
 
+        val pointId = input.id ?: UUID.randomUUID()
+        if (input.id != null && itineraryRepository.findById(pointId) != null) {
+            throw DomainException.DuplicateId("ItineraryPoint", pointId)
+        }
+
         val now = Instant.now()
         val point = ItineraryPoint(
-            id = UUID.randomUUID(),
+            id = pointId,
             tripId = input.tripId,
             title = input.title.trim(),
             description = input.description?.trim(),

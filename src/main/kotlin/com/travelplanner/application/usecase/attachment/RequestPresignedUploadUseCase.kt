@@ -15,10 +15,11 @@ class RequestPresignedUploadUseCase(
         val userId: UUID,
         val fileName: String,
         val contentType: String,
-        val fileSize: Long
+        val fileSize: Long,
+        val attachmentId: UUID? = null,
     )
 
-    data class Output(val presignedUrl: String, val s3Key: String)
+    data class Output(val presignedUrl: String, val s3Key: String, val attachmentId: UUID)
 
     companion object {
         private const val MAX_FILE_SIZE = 50L * 1024 * 1024 // 50 MB
@@ -58,7 +59,7 @@ class RequestPresignedUploadUseCase(
             throw DomainException.ValidationError("Unsupported file type: ${input.contentType}")
         }
 
-        val fileId = UUID.randomUUID()
+        val fileId = input.attachmentId ?: UUID.randomUUID()
         val s3Key = "trips/${input.tripId}/attachments/$fileId/${input.fileName}"
 
         val presignedUrl = s3StorageService.generatePresignedUploadUrl(
@@ -66,6 +67,6 @@ class RequestPresignedUploadUseCase(
             contentType = input.contentType
         )
 
-        return Output(presignedUrl = presignedUrl, s3Key = s3Key)
+        return Output(presignedUrl = presignedUrl, s3Key = s3Key, attachmentId = fileId)
     }
 }

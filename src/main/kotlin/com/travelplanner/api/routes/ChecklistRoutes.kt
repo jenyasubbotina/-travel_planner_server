@@ -21,6 +21,7 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import io.ktor.server.routing.route
 import org.koin.ktor.ext.inject
+import java.util.UUID
 
 fun Route.checklistRoutes() {
     val listChecklistItemsUseCase by inject<ListChecklistItemsUseCase>()
@@ -49,6 +50,7 @@ fun Route.checklistRoutes() {
                         userId = userId,
                         title = req.title,
                         isGroup = req.isGroup,
+                        id = req.id?.let(UUID::fromString),
                     )
                 )
                 call.respond(HttpStatusCode.Created, item.toResponse())

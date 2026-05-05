@@ -70,6 +70,9 @@ fun Application.configureStatusPages() {
                 is DomainException.VersionConflict ->
                     HttpStatusCode.Conflict to ErrorResponse(cause.code, cause.message)
 
+                is DomainException.DuplicateId ->
+                    HttpStatusCode.Conflict to ErrorResponse(cause.code, cause.message)
+
                 is DomainException.IdempotencyConflict ->
                     HttpStatusCode.Conflict to ErrorResponse(cause.code, cause.message)
 
