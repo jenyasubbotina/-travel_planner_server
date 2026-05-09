@@ -52,6 +52,7 @@ jobs:
             set -e
             cd ${{ secrets.VPS_APP_DIR }}
             export APP_IMAGE=${{ env.IMAGE_NAME }}:latest
+            export COMPOSE_PROJECT_NAME=travel-planner
 
             # Write runtime env from GitHub Secret.
             cat > .env <<'EOF'
@@ -82,4 +83,5 @@ jobs:
             # Remove app container via docker CLI to avoid compose recreate path.
             sudo -n docker rm -f travel-planner_app_1 >/dev/null 2>&1 || docker rm -f travel-planner_app_1 >/dev/null 2>&1 || true
             $DC -f docker-compose.prod.yml pull app
+            $DC -f docker-compose.prod.yml up -d --no-recreate postgres redis minio || true
             $DC -f docker-compose.prod.yml up -d --no-deps app
