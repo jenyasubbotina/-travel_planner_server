@@ -154,6 +154,7 @@ src/main/kotlin/com/travelplanner/
 | `REDIS_HOST`                      | Хост Redis |
 | `REDIS_PORT`                      | Порт Redis |
 | `S3_ENDPOINT`                     | URL S3-совместимого хранилища |
+| `S3_PUBLIC_ENDPOINT`              | Публичный URL S3/MinIO для presigned URL (доступный клиентам) |
 | `S3_ACCESS_KEY`                   | Access key для S3 |
 | `S3_SECRET_KEY`                   | Secret key для S3 |
 | `S3_BUCKET`                       | Имя S3-бакета |
