@@ -79,7 +79,7 @@ jobs:
             fi
 
             # docker-compose v1 can fail on recreate with KeyError('ContainerConfig').
-            # Update only app container and do not recreate dependencies.
-            $DC -f docker-compose.prod.yml rm -sf app || true
+            # Remove app container via docker CLI to avoid compose recreate path.
+            sudo -n docker rm -f travel-planner_app_1 >/dev/null 2>&1 || docker rm -f travel-planner_app_1 >/dev/null 2>&1 || true
             $DC -f docker-compose.prod.yml pull app
-            $DC -f docker-compose.prod.yml up -d --no-deps --force-recreate app
+            $DC -f docker-compose.prod.yml up -d --no-deps app
