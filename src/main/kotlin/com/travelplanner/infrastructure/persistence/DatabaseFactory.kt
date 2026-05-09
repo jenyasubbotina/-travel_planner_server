@@ -25,6 +25,7 @@ object DatabaseFactory {
         val flyway = Flyway.configure()
             .dataSource(dataSource)
             .locations("classpath:db/migration")
+            .baselineOnMigrate(true)
             .outOfOrder(true)
             .load()
         flyway.repair()

@@ -1,6 +1,6 @@
 services:
   app:
-    image: ${APP_IMAGE:?Set APP_IMAGE}
+    build: .
     ports:
       - "8080:8080"
     depends_on:
@@ -19,6 +19,7 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - S3_ENDPOINT=http://minio:9000
+      - S3_PUBLIC_ENDPOINT=http://localhost:9000
       - S3_ACCESS_KEY=minioadmin
       - S3_SECRET_KEY=minioadmin
       - S3_BUCKET=travel-planner
