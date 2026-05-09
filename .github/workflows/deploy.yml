@@ -52,6 +52,19 @@ jobs:
             set -e
             cd ${{ secrets.VPS_APP_DIR }}
             export APP_IMAGE=${{ env.IMAGE_NAME }}:latest
+
+            # Write runtime env from GitHub Secret.
+            cat > .env <<'EOF'
+            ${{ secrets.VPS_ENV_FILE }}
+            EOF
+
+            # Write Firebase Admin SDK JSON key from GitHub Secret.
+            cat > travelplanner-firebase.json <<'EOF'
+            ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+            EOF
+
+            chmod 600 .env travelplanner-firebase.json
+
             if sudo -n docker compose version >/dev/null 2>&1; then
               DC="sudo -n docker compose"
             elif sudo -n docker-compose version >/dev/null 2>&1; then

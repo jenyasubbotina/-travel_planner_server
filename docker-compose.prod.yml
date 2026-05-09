@@ -24,6 +24,9 @@ services:
       - S3_SECRET_KEY=minioadmin
       - S3_BUCKET=travel-planner
       - S3_REGION=us-east-1
+      - FCM_SERVICE_ACCOUNT_PATH=/app/travelplanner-firebase.json
+    volumes:
+      - ./travelplanner-firebase.json:/app/travelplanner-firebase.json:ro
 
   postgres:
     image: postgres:16-alpine
