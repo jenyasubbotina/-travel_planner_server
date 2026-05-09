@@ -52,5 +52,13 @@ jobs:
             set -e
             cd ${{ secrets.VPS_APP_DIR }}
             export APP_IMAGE=${{ env.IMAGE_NAME }}:latest
-            docker compose -f docker-compose.prod.yml pull app
-            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            if docker compose version >/dev/null 2>&1; then
+              DC="docker compose"
+            elif command -v docker-compose >/dev/null 2>&1; then
+              DC="docker-compose"
+            else
+              echo "Neither 'docker compose' nor 'docker-compose' found on VPS"
+              exit 1
+            fi
+            $DC -f docker-compose.prod.yml pull app
+            $DC -f docker-compose.prod.yml up -d --remove-orphans
