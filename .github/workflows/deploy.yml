@@ -52,7 +52,11 @@ jobs:
             set -e
             cd ${{ secrets.VPS_APP_DIR }}
             export APP_IMAGE=${{ env.IMAGE_NAME }}:latest
-            if docker compose version >/dev/null 2>&1; then
+            if sudo -n docker compose version >/dev/null 2>&1; then
+              DC="sudo -n docker compose"
+            elif sudo -n docker-compose version >/dev/null 2>&1; then
+              DC="sudo -n docker-compose"
+            elif docker compose version >/dev/null 2>&1; then
               DC="docker compose"
             elif command -v docker-compose >/dev/null 2>&1; then
               DC="docker-compose"
