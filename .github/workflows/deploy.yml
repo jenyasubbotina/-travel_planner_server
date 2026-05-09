@@ -79,7 +79,7 @@ jobs:
             fi
 
             # docker-compose v1 can fail on recreate with KeyError('ContainerConfig').
-            # Remove old app container explicitly before bringing services up.
+            # Update only app container and do not recreate dependencies.
             $DC -f docker-compose.prod.yml rm -sf app || true
             $DC -f docker-compose.prod.yml pull app
-            $DC -f docker-compose.prod.yml up -d --remove-orphans --force-recreate
+            $DC -f docker-compose.prod.yml up -d --no-deps --force-recreate app
