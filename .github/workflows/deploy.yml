@@ -54,6 +54,13 @@ jobs:
             export APP_IMAGE=${{ env.IMAGE_NAME }}:latest
             export COMPOSE_PROJECT_NAME=travel-planner
 
+            # Sync deployment repo on VPS to latest main branch.
+            if [ -d .git ]; then
+              git fetch origin main
+              git checkout main
+              git pull --ff-only origin main
+            fi
+
             # Write runtime env from GitHub Secret.
             cat > .env <<'EOF'
             ${{ secrets.VPS_ENV_FILE }}
