@@ -77,6 +77,7 @@ private fun User.toResponse() = UserResponse(
     email = email,
     displayName = displayName,
     avatarUrl = avatarUrl,
+    emailVerified = emailVerifiedAt != null,
     createdAt = createdAt.toString(),
     updatedAt = updatedAt.toString()
 )

@@ -8,7 +8,9 @@ data class AppConfig(
     val redis: RedisConfig,
     val s3: S3Config,
     val fcm: FcmConfig,
-    val admin: AdminConfig
+    val admin: AdminConfig,
+    val smtp: SmtpConfig,
+    val appLinks: AppLinksConfig
 ) {
     companion object {
         fun load(config: ApplicationConfig): AppConfig {
@@ -68,6 +70,27 @@ data class AppConfig(
                             config.propertyOrNull("admin.bindLocalhostOnly")?.getString()?.toBoolean()
                         }.getOrNull()
                         ?: true
+                ),
+                smtp = SmtpConfig(
+                    enabled = config.propertyOrNull("smtp.enabled")?.getString()?.toBoolean() ?: false,
+                    host = config.propertyOrNull("smtp.host")?.getString()?.trim().orEmpty(),
+                    port = config.propertyOrNull("smtp.port")?.getString()?.toIntOrNull() ?: 587,
+                    username = config.propertyOrNull("smtp.username")?.getString()?.trim().orEmpty(),
+                    password = config.propertyOrNull("smtp.password")?.getString().orEmpty(),
+                    fromAddress = config.propertyOrNull("smtp.fromAddress")?.getString()?.trim().orEmpty(),
+                    tlsMode = when (
+                        config.propertyOrNull("smtp.tlsMode")?.getString()?.trim()?.lowercase() ?: "starttls"
+                    ) {
+                        "ssl", "smtps" -> SmtpTlsMode.SSL
+                        else -> SmtpTlsMode.STARTTLS
+                    }
+                ),
+                appLinks = AppLinksConfig(
+                    publicApiBaseUrl = config.propertyOrNull("app.publicApiBaseUrl")?.getString()?.trim().orEmpty(),
+                    emailVerifySuccessRedirectUrl = config.propertyOrNull("app.emailVerifySuccessRedirectUrl")
+                        ?.getString()?.trim()?.takeIf { it.isNotEmpty() },
+                    emailVerifyFailureRedirectUrl = config.propertyOrNull("app.emailVerifyFailureRedirectUrl")
+                        ?.getString()?.trim()?.takeIf { it.isNotEmpty() }
                 )
             )
         }
@@ -110,4 +133,25 @@ data class FcmConfig(
 data class AdminConfig(
     val enabled: Boolean = false,
     val bindLocalhostOnly: Boolean = true
+)
+
+data class AppLinksConfig(
+    val publicApiBaseUrl: String = "",
+    val emailVerifySuccessRedirectUrl: String? = null,
+    val emailVerifyFailureRedirectUrl: String? = null
+)
+
+enum class SmtpTlsMode {
+    STARTTLS,
+    SSL
+}
+
+data class SmtpConfig(
+    val enabled: Boolean = false,
+    val host: String = "",
+    val port: Int = 587,
+    val username: String = "",
+    val password: String = "",
+    val fromAddress: String = "",
+    val tlsMode: SmtpTlsMode = SmtpTlsMode.STARTTLS
 )

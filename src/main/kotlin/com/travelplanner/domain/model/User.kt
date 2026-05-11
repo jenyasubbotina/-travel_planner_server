@@ -9,6 +9,8 @@ data class User(
     val displayName: String,
     val passwordHash: String,
     val avatarUrl: String? = null,
+    val emailVerifiedAt: Instant? = null,
+    val emailVerificationExpiresAt: Instant? = null,
     val createdAt: Instant,
     val updatedAt: Instant
 )

@@ -29,6 +29,13 @@ class ExposedUserRepository : UserRepository {
             ?.toUser()
     }
 
+    override suspend fun findByEmailVerificationTokenHash(tokenHash: String): User? = dbQuery {
+        UsersTable.selectAll()
+            .where { UsersTable.emailVerificationTokenHash eq tokenHash }
+            .singleOrNull()
+            ?.toUser()
+    }
+
     override suspend fun create(user: User): User = dbQuery {
         UsersTable.insert {
             it[id] = user.id
@@ -36,6 +43,9 @@ class ExposedUserRepository : UserRepository {
             it[displayName] = user.displayName
             it[passwordHash] = user.passwordHash
             it[avatarUrl] = user.avatarUrl
+            it[emailVerifiedAt] = user.emailVerifiedAt
+            it[emailVerificationTokenHash] = null
+            it[emailVerificationExpiresAt] = null
             it[createdAt] = user.createdAt
             it[updatedAt] = user.updatedAt
         }
@@ -49,9 +59,29 @@ class ExposedUserRepository : UserRepository {
             it[displayName] = user.displayName
             it[passwordHash] = user.passwordHash
             it[avatarUrl] = user.avatarUrl
+            it[emailVerifiedAt] = user.emailVerifiedAt
             it[updatedAt] = now
         }
         user.copy(updatedAt = now)
+    }
+
+    override suspend fun setEmailVerificationToken(userId: UUID, tokenHash: String, expiresAt: Instant): Unit = dbQuery {
+        val now = Instant.now()
+        UsersTable.update({ UsersTable.id eq userId }) {
+            it[emailVerificationTokenHash] = tokenHash
+            it[emailVerificationExpiresAt] = expiresAt
+            it[updatedAt] = now
+        }
+    }
+
+    override suspend fun confirmEmail(userId: UUID): Unit = dbQuery {
+        val now = Instant.now()
+        UsersTable.update({ UsersTable.id eq userId }) {
+            it[emailVerifiedAt] = now
+            it[emailVerificationTokenHash] = null
+            it[emailVerificationExpiresAt] = null
+            it[updatedAt] = now
+        }
     }
 
     // --- Refresh tokens ---
@@ -139,6 +169,8 @@ class ExposedUserRepository : UserRepository {
         displayName = this[UsersTable.displayName],
         passwordHash = this[UsersTable.passwordHash],
         avatarUrl = this[UsersTable.avatarUrl],
+        emailVerifiedAt = this[UsersTable.emailVerifiedAt],
+        emailVerificationExpiresAt = this[UsersTable.emailVerificationExpiresAt],
         createdAt = this[UsersTable.createdAt],
         updatedAt = this[UsersTable.updatedAt]
     )

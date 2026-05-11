@@ -4,6 +4,7 @@ import com.travelplanner.application.usecase.auth.LoginUseCase
 import com.travelplanner.application.usecase.auth.LogoutUseCase
 import com.travelplanner.application.usecase.auth.RefreshTokenUseCase
 import com.travelplanner.application.usecase.auth.RegisterUseCase
+import com.travelplanner.application.usecase.auth.VerifyEmailUseCase
 import com.travelplanner.application.usecase.user.GetProfileUseCase
 import com.travelplanner.application.usecase.user.RegisterDeviceUseCase
 import com.travelplanner.application.usecase.user.RemoveDeviceUseCase
@@ -69,6 +70,7 @@ import com.travelplanner.domain.repository.UserRepository
 import com.travelplanner.infrastructure.auth.JwtService
 import com.travelplanner.infrastructure.auth.RefreshTokenHasher
 import com.travelplanner.infrastructure.config.AppConfig
+import com.travelplanner.infrastructure.config.AppLinksConfig
 import com.travelplanner.infrastructure.fcm.FcmClient
 import com.travelplanner.infrastructure.fcm.FcmNotificationService
 import com.travelplanner.infrastructure.fcm.OutboxProcessor
@@ -86,17 +88,28 @@ import com.travelplanner.infrastructure.persistence.repository.ExposedSyncReposi
 import com.travelplanner.infrastructure.persistence.repository.ExposedUserRepository
 import com.travelplanner.infrastructure.redis.RedisCacheService
 import com.travelplanner.infrastructure.redis.RedisFactory
+import com.travelplanner.infrastructure.email.EmailSender
+import com.travelplanner.infrastructure.email.NoOpEmailSender
+import com.travelplanner.infrastructure.email.SmtpEmailSender
 import com.travelplanner.infrastructure.s3.S3ClientFactory
 import com.travelplanner.infrastructure.s3.S3StorageService
 import org.koin.dsl.module
 
 val appModule = module {
 
+    // Public links (email verification URLs, redirects)
+    single<AppLinksConfig> { get<AppConfig>().appLinks }
+
     // ──────────────────────────────────────────────
     // Infrastructure — Auth
     // ──────────────────────────────────────────────
     single { JwtService(get<AppConfig>().jwt) }
     single { RefreshTokenHasher(get<AppConfig>().jwt.secret) }
+
+    single<EmailSender> {
+        val smtp = get<AppConfig>().smtp
+        if (smtp.enabled) SmtpEmailSender(smtp) else NoOpEmailSender()
+    }
 
     // ──────────────────────────────────────────────
     // Infrastructure — Redis
@@ -157,7 +170,8 @@ val appModule = module {
     // ──────────────────────────────────────────────
     // Use Cases — Auth
     // ──────────────────────────────────────────────
-    single { RegisterUseCase(get(), get(), get()) }
+    single { RegisterUseCase(get(), get(), get(), get<AppLinksConfig>()) }
+    single { VerifyEmailUseCase(get(), get()) }
     single { LoginUseCase(get(), get(), get()) }
     single { RefreshTokenUseCase(get(), get(), get()) }
     single { LogoutUseCase(get(), get()) }

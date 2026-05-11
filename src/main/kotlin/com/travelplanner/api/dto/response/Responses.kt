@@ -23,8 +23,15 @@ data class UserResponse(
     val email: String,
     val displayName: String,
     val avatarUrl: String? = null,
+    val emailVerified: Boolean,
     val createdAt: String,
     val updatedAt: String
+)
+
+@Serializable
+data class RegisterPendingResponse(
+    val message: String,
+    val user: UserResponse
 )
 
 @Serializable

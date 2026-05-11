@@ -97,6 +97,9 @@ dependencies {
     // Logging
     implementation(libs.logback.classic)
 
+    // SMTP (Jakarta Mail)
+    implementation(libs.angus.mail)
+
     // Kotlinx
     implementation(libs.kotlinx.datetime)
 

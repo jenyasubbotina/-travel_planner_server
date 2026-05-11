@@ -31,6 +31,10 @@ class LoginUseCase(
             throw DomainException.InvalidCredentials()
         }
 
+        if (user.emailVerifiedAt == null) {
+            throw DomainException.EmailNotVerified()
+        }
+
         val now = Instant.now()
         val accessToken = jwtService.generateAccessToken(user.id, user.email)
         val refreshTokenStr = jwtService.generateRefreshToken()

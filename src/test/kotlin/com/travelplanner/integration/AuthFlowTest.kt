@@ -5,6 +5,7 @@ import com.travelplanner.api.dto.request.LoginRequest
 import com.travelplanner.api.dto.request.RefreshTokenRequest
 import com.travelplanner.api.dto.request.RegisterRequest
 import com.travelplanner.api.dto.response.AuthResponse
+import com.travelplanner.api.dto.response.RegisterPendingResponse
 import com.travelplanner.application.usecase.auth.LoginUseCase
 import com.travelplanner.application.usecase.auth.RefreshTokenUseCase
 import com.travelplanner.application.usecase.auth.RegisterUseCase
@@ -18,7 +19,6 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.mockk.coEvery
-import io.mockk.coVerify
 import org.junit.jupiter.api.Test
 import org.koin.core.module.Module
 import org.koin.dsl.module
@@ -41,6 +41,7 @@ class AuthFlowTest : BaseIntegrationTest() {
         email = testEmail,
         displayName = testDisplayName,
         passwordHash = "hashed",
+        emailVerifiedAt = Instant.parse("2025-01-01T00:00:00Z"),
         createdAt = Instant.parse("2025-01-01T00:00:00Z"),
         updatedAt = Instant.parse("2025-01-01T00:00:00Z")
     )
@@ -56,11 +57,11 @@ class AuthFlowTest : BaseIntegrationTest() {
     }
 
     @Test
-    fun `register returns 201 with auth response`() = testApp { client ->
+    fun `register returns 201 with pending response without tokens`() = testApp { client ->
+        val pendingUser = testUser.copy(emailVerifiedAt = null)
         coEvery { registerUseCase.execute(any()) } returns RegisterUseCase.Output(
-            accessToken = testAccessToken,
-            refreshToken = testRefreshToken,
-            user = testUser
+            message = "Check your email",
+            user = pendingUser
         )
 
         val response = client.post("/api/v1/auth/register") {
@@ -69,12 +70,11 @@ class AuthFlowTest : BaseIntegrationTest() {
         }
 
         assertEquals(HttpStatusCode.Created, response.status)
-        val body = response.body<AuthResponse>()
-        assertEquals(testAccessToken, body.accessToken)
-        assertEquals(testRefreshToken, body.refreshToken)
+        val body = response.body<RegisterPendingResponse>()
+        assertEquals("Check your email", body.message)
         assertEquals(testUserId.toString(), body.user.id)
         assertEquals(testEmail, body.user.email)
-        assertEquals(testDisplayName, body.user.displayName)
+        assertEquals(false, body.user.emailVerified)
     }
 
     @Test
@@ -137,6 +137,20 @@ class AuthFlowTest : BaseIntegrationTest() {
         assertEquals(HttpStatusCode.Unauthorized, response.status)
         val body = response.body<ErrorResponse>()
         assertEquals("INVALID_CREDENTIALS", body.code)
+    }
+
+    @Test
+    fun `login with unverified email returns 403`() = testApp { client ->
+        coEvery { loginUseCase.execute(any()) } throws DomainException.EmailNotVerified()
+
+        val response = client.post("/api/v1/auth/login") {
+            contentType(ContentType.Application.Json)
+            setBody(LoginRequest(testEmail, testPassword))
+        }
+
+        assertEquals(HttpStatusCode.Forbidden, response.status)
+        val body = response.body<ErrorResponse>()
+        assertEquals("EMAIL_NOT_VERIFIED", body.code)
     }
 
     @Test

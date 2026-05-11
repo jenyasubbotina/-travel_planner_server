@@ -21,6 +21,12 @@ fun Application.configureStatusPages() {
                 is DomainException.InvalidCredentials ->
                     HttpStatusCode.Unauthorized to ErrorResponse(cause.code, cause.message)
 
+                is DomainException.EmailNotVerified ->
+                    HttpStatusCode.Forbidden to ErrorResponse(cause.code, cause.message)
+
+                is DomainException.InvalidOrExpiredVerificationToken ->
+                    HttpStatusCode.BadRequest to ErrorResponse(cause.code, cause.message)
+
                 is DomainException.InvalidRefreshToken ->
                     HttpStatusCode.Unauthorized to ErrorResponse(cause.code, cause.message)
 

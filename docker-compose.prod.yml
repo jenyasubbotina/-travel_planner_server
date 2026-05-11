@@ -25,6 +25,13 @@ services:
       - S3_BUCKET=travel-planner
       - S3_REGION=us-east-1
       - FCM_SERVICE_ACCOUNT_PATH=/app/travelplanner-firebase.json
+      - PUBLIC_API_BASE_URL=http://111.88.158.20
+      - SMTP_ENABLED=true
+      - SMTP_HOST=smtp.yandex.ru
+      - SMTP_PORT=465
+      - SMTP_TLS_MODE=ssl
+      - SMTP_USERNAME=egsubbotina_1@edu.hse.ru
+      - SMTP_FROM=egsubbotina_1@edu.hse.ru
     volumes:
       - ./travelplanner-firebase.json:/app/travelplanner-firebase.json:ro
 

@@ -6,11 +6,11 @@ import com.travelplanner.application.usecase.participant.InviteParticipantUseCas
 import com.travelplanner.application.usecase.trip.CreateTripUseCase
 import com.travelplanner.domain.model.TripRole
 import com.travelplanner.domain.repository.DomainEventRepository
-import com.travelplanner.infrastructure.auth.JwtService
 import com.travelplanner.infrastructure.auth.RefreshTokenHasher
 import com.travelplanner.infrastructure.config.DatabaseConfig
 import com.travelplanner.infrastructure.config.FcmConfig
-import com.travelplanner.infrastructure.config.JwtConfig
+import com.travelplanner.infrastructure.config.AppLinksConfig
+import com.travelplanner.infrastructure.email.NoOpEmailSender
 import com.travelplanner.infrastructure.fcm.FcmClient
 import com.travelplanner.infrastructure.fcm.FcmNotificationService
 import com.travelplanner.infrastructure.fcm.OutboxProcessor
@@ -52,6 +52,7 @@ import kotlin.test.assertTrue
 class OutboxSmokeTest {
 
     private lateinit var postgres: EmbeddedPostgres
+    private lateinit var userRepository: ExposedUserRepository
     private lateinit var domainEventRepository: DomainEventRepository
     private lateinit var registerUseCase: RegisterUseCase
     private lateinit var createTripUseCase: CreateTripUseCase
@@ -71,7 +72,7 @@ class OutboxSmokeTest {
         )
         DatabaseFactory.init(config)
 
-        val userRepository = ExposedUserRepository()
+        userRepository = ExposedUserRepository()
         val tripRepository = ExposedTripRepository()
         val participantRepository = ExposedParticipantRepository()
         val itineraryRepository = ExposedItineraryRepository()
@@ -79,18 +80,14 @@ class OutboxSmokeTest {
         val transactionRunner = ExposedTransactionRunner()
 
         val jwtSecret = "smoke-test-secret-key-at-least-32-characters!!"
-        val jwtService = JwtService(
-            JwtConfig(
-                secret = jwtSecret,
-                issuer = "smoke",
-                audience = "smoke",
-                accessTokenExpiryMinutes = 30,
-                refreshTokenExpiryDays = 30
-            )
-        )
         val refreshTokenHasher = RefreshTokenHasher(jwtSecret)
 
-        registerUseCase = RegisterUseCase(userRepository, jwtService, refreshTokenHasher)
+        registerUseCase = RegisterUseCase(
+            userRepository,
+            NoOpEmailSender(),
+            refreshTokenHasher,
+            AppLinksConfig(publicApiBaseUrl = "http://localhost")
+        )
         createTripUseCase = CreateTripUseCase(
             tripRepository = tripRepository,
             participantRepository = participantRepository,
@@ -137,6 +134,7 @@ class OutboxSmokeTest {
                 password = "password123"
             )
         ).user
+        userRepository.confirmEmail(owner.id)
 
         val invitee = registerUseCase.execute(
             RegisterUseCase.Input(
@@ -145,6 +143,7 @@ class OutboxSmokeTest {
                 password = "password123"
             )
         ).user
+        userRepository.confirmEmail(invitee.id)
 
         // 1) Create a trip — expect TRIP_CREATED
         val trip = createTripUseCase.execute(

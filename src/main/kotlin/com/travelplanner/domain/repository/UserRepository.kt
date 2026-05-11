@@ -3,13 +3,18 @@ package com.travelplanner.domain.repository
 import com.travelplanner.domain.model.RefreshToken
 import com.travelplanner.domain.model.User
 import com.travelplanner.domain.model.UserDevice
+import java.time.Instant
 import java.util.UUID
 
 interface UserRepository {
     suspend fun findById(id: UUID): User?
     suspend fun findByEmail(email: String): User?
+    suspend fun findByEmailVerificationTokenHash(tokenHash: String): User?
     suspend fun create(user: User): User
     suspend fun update(user: User): User
+
+    suspend fun setEmailVerificationToken(userId: UUID, tokenHash: String, expiresAt: Instant)
+    suspend fun confirmEmail(userId: UUID)
 
     // Refresh tokens
     suspend fun saveRefreshToken(token: RefreshToken)

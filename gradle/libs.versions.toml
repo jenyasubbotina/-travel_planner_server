@@ -18,6 +18,7 @@ kotlinxDatetime = "0.6.0"
 embeddedPostgres = "2.0.7"
 embeddedPostgresBinaries = "16.2.0"
 micrometerPrometheus = "1.14.2"
+angusMail = "2.0.3"
 
 [libraries]
 # Ktor Server
@@ -67,6 +68,9 @@ firebase-admin = { module = "com.google.firebase:firebase-admin", version.ref = 
 
 # Logging
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
+
+# Email (Jakarta Mail)
+angus-mail = { module = "org.eclipse.angus:angus-mail", version.ref = "angusMail" }
 
 # Kotlinx
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetime" }

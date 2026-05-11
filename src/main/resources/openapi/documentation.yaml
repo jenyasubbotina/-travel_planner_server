@@ -63,11 +63,28 @@ paths:
               $ref: "#/components/schemas/RegisterRequest"
       responses:
         "201":
-          description: User registered
+          description: User created; verify email before login (no tokens in this response)
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AuthResponse"
+                $ref: "#/components/schemas/RegisterPendingResponse"
+  /api/v1/auth/verify-email:
+    get:
+      tags: [Auth]
+      summary: Confirm email via link from message (query token)
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Verified (HTML body if no success redirect URL configured)
+        "302":
+          description: Redirect to configured success or failure URL
+        "400":
+          description: Invalid or expired token (HTML body if no failure redirect configured)
   /api/v1/auth/login:
     post:
       tags: [Auth]
@@ -791,10 +808,20 @@ components:
         avatarUrl:
           type: string
           nullable: true
+        emailVerified:
+          type: boolean
         createdAt:
           type: string
         updatedAt:
           type: string
+    RegisterPendingResponse:
+      type: object
+      required: [message, user]
+      properties:
+        message:
+          type: string
+        user:
+          $ref: "#/components/schemas/UserResponse"
     AuthResponse:
       allOf:
         - $ref: "#/components/schemas/TokenPairResponse"

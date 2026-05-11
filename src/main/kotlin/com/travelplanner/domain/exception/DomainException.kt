@@ -7,6 +7,9 @@ sealed class DomainException(override val message: String, val code: String) : R
     // Auth
     class EmailAlreadyExists(email: String) : DomainException("User with email '$email' already exists", "EMAIL_ALREADY_EXISTS")
     class InvalidCredentials : DomainException("Invalid email or password", "INVALID_CREDENTIALS")
+    class EmailNotVerified : DomainException("Email address is not verified", "EMAIL_NOT_VERIFIED")
+    class InvalidOrExpiredVerificationToken :
+        DomainException("Invalid or expired verification link", "INVALID_OR_EXPIRED_VERIFICATION_TOKEN")
     class InvalidRefreshToken : DomainException("Invalid or expired refresh token", "INVALID_REFRESH_TOKEN")
     class TokenExpired : DomainException("Token has expired", "TOKEN_EXPIRED")
 

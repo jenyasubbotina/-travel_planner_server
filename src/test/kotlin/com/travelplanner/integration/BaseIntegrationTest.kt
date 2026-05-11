@@ -23,6 +23,7 @@ import com.travelplanner.application.usecase.auth.LoginUseCase
 import com.travelplanner.application.usecase.auth.LogoutUseCase
 import com.travelplanner.application.usecase.auth.RefreshTokenUseCase
 import com.travelplanner.application.usecase.auth.RegisterUseCase
+import com.travelplanner.application.usecase.auth.VerifyEmailUseCase
 import com.travelplanner.application.usecase.expense.CreateExpenseUseCase
 import com.travelplanner.application.usecase.expense.DeleteExpenseUseCase
 import com.travelplanner.application.usecase.expense.ListExpensesUseCase
@@ -51,6 +52,7 @@ import com.travelplanner.domain.repository.ItineraryRepository
 import com.travelplanner.domain.repository.ParticipantRepository
 import com.travelplanner.domain.repository.UserRepository
 import com.travelplanner.infrastructure.auth.JwtService
+import com.travelplanner.infrastructure.config.AppLinksConfig
 import com.travelplanner.infrastructure.config.JwtConfig
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -151,6 +153,8 @@ abstract class BaseIntegrationTest {
         single { mockk<LoginUseCase>(relaxed = true) }
         single { mockk<RefreshTokenUseCase>(relaxed = true) }
         single { mockk<LogoutUseCase>(relaxed = true) }
+        single { mockk<VerifyEmailUseCase>(relaxed = true) }
+        single { AppLinksConfig(publicApiBaseUrl = "http://localhost") }
 
         // Use cases - User
         single { mockk<GetProfileUseCase>(relaxed = true) }

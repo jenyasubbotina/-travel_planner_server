@@ -35,6 +35,8 @@ out/
 ### VS Code ###
 .vscode/
 /data/
+.env
+travelplanner-firebase.json
 
 ### Admin debug
 /src/main/resources/admin/

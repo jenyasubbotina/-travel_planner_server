@@ -64,6 +64,25 @@ spec:
               value: travel-planner
             - name: S3_REGION
               value: us-east-1
+            - name: PUBLIC_API_BASE_URL
+              value: http://111.88.158.20
+            - name: SMTP_ENABLED
+              value: "true"
+            - name: SMTP_HOST
+              value: smtp.yandex.ru
+            - name: SMTP_PORT
+              value: "465"
+            - name: SMTP_TLS_MODE
+              value: ssl
+            - name: SMTP_USERNAME
+              value: egsubbotina_1@edu.hse.ru
+            - name: SMTP_FROM
+              value: egsubbotina_1@edu.hse.ru
+            - name: SMTP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: travel-planner-secrets
+                  key: smtp-password
           readinessProbe:
             httpGet:
               path: /health/ready
