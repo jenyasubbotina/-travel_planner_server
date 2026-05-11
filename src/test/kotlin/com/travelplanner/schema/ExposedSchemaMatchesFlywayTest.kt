@@ -35,7 +35,7 @@ import org.testcontainers.junit.jupiter.Testcontainers
  * Fails the build/test phase if Flyway migrations produce a PostgreSQL schema that does not match
  * the Exposed [org.jetbrains.exposed.sql.Table] definitions (the ORM layer used by repositories).
  *
- * When this test fails, either adjust SQL migrations under `src/main/resources/db/migration/`
+ * When this test fails, either adjust SQL migrations under `src/main/resources/com/travelplanner/db/migration/`
  * or update the matching `*Table.kt` so they stay in sync.
  */
 @Testcontainers(disabledWithoutDocker = true)
@@ -86,7 +86,7 @@ class ExposedSchemaMatchesFlywayTest {
         try {
             Flyway.configure()
                 .dataSource(dataSource)
-                .locations("classpath:db/migration")
+                .locations("classpath:com/travelplanner/db/migration")
                 .load()
                 .migrate()
 

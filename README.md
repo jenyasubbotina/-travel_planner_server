@@ -96,7 +96,7 @@ curl -s http://localhost:8080/metrics | head
 Миграции Flyway применяются автоматически при старте приложения. Файлы миграций:
 
 ```text
-src/main/resources/db/migration/
+src/main/resources/com/travelplanner/db/migration/
 ```
 
 ## Запуск тестов

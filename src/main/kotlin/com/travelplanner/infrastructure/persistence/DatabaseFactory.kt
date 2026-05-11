@@ -24,7 +24,9 @@ object DatabaseFactory {
 
         val flyway = Flyway.configure()
             .dataSource(dataSource)
-            .locations("classpath:db/migration")
+            // Уникальный путь: в fat-jar есть чужие .sql (например Logback ch/qos/.../postgresql.sql).
+            // С classpath:db/migration Flyway валидирует лишние файлы; часть наших миграций может не применяться.
+            .locations("classpath:com/travelplanner/db/migration")
             .baselineOnMigrate(true)
             .outOfOrder(true)
             .load()

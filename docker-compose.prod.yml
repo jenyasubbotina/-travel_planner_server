@@ -1,3 +1,5 @@
+# Образ приложения: задайте в .env рядом с этим файлом (APP_IMAGE=...) или export перед командой.
+# CI задаёт через export при деплое. Без этого любая команда compose (logs, up) выдаст ошибку.
 services:
   app:
     image: ${APP_IMAGE:?Set APP_IMAGE}
