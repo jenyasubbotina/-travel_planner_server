@@ -69,6 +69,15 @@ jobs:
             ${{ secrets.VPS_ENV_FILE }}
             EOF
 
+            # Секрет VPS_ENV_FILE полностью заменяет .env — если в секрете нет строки, её не будет.
+            # Подстраховка: APP_IMAGE (ручной docker compose на VPS) и PUBLIC_API_BASE_URL (опц. GitHub Variable).
+            if ! grep -q '^APP_IMAGE=' .env; then
+              echo "APP_IMAGE=${{ env.IMAGE_NAME }}:${{ github.sha }}" >> .env
+            fi
+            if [ -n "${{ vars.VPS_PUBLIC_API_BASE_URL }}" ] && ! grep -q '^PUBLIC_API_BASE_URL=' .env; then
+              echo "PUBLIC_API_BASE_URL=${{ vars.VPS_PUBLIC_API_BASE_URL }}" >> .env
+            fi
+
             # Write Firebase Admin SDK JSON key from GitHub Secret.
             cat > travelplanner-firebase.json <<'EOF'
             ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
