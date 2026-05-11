@@ -1,6 +1,8 @@
 package com.travelplanner.infrastructure.config
 
 import io.ktor.server.config.ApplicationConfig
+import java.net.URI
+import java.net.URISyntaxException
 
 data class AppConfig(
     val database: DatabaseConfig,
@@ -14,6 +16,36 @@ data class AppConfig(
 ) {
     companion object {
         fun load(config: ApplicationConfig): AppConfig {
+            val deploymentPort = config.propertyOrNull("ktor.deployment.port")
+                ?.getString()?.toIntOrNull() ?: 8080
+            val rawPublicApiBaseUrl = config.propertyOrNull("app.publicApiBaseUrl")?.getString()?.trim().orEmpty()
+            val publicApiBaseUrl = normalizePublicApiBaseUrl(rawPublicApiBaseUrl, deploymentPort)
+
+            val smtp = SmtpConfig(
+                enabled = config.propertyOrNull("smtp.enabled")?.getString()?.toBoolean() ?: false,
+                host = config.propertyOrNull("smtp.host")?.getString()?.trim().orEmpty(),
+                port = config.propertyOrNull("smtp.port")?.getString()?.toIntOrNull() ?: 587,
+                username = config.propertyOrNull("smtp.username")?.getString()?.trim().orEmpty(),
+                password = config.propertyOrNull("smtp.password")?.getString().orEmpty(),
+                fromAddress = config.propertyOrNull("smtp.fromAddress")?.getString()?.trim().orEmpty(),
+                tlsMode = when (
+                    config.propertyOrNull("smtp.tlsMode")?.getString()?.trim()?.lowercase() ?: "starttls"
+                ) {
+                    "ssl", "smtps" -> SmtpTlsMode.SSL
+                    else -> SmtpTlsMode.STARTTLS
+                }
+            )
+
+            val appLinks = AppLinksConfig(
+                publicApiBaseUrl = publicApiBaseUrl,
+                emailVerifySuccessRedirectUrl = config.propertyOrNull("app.emailVerifySuccessRedirectUrl")
+                    ?.getString()?.trim()?.takeIf { it.isNotEmpty() },
+                emailVerifyFailureRedirectUrl = config.propertyOrNull("app.emailVerifyFailureRedirectUrl")
+                    ?.getString()?.trim()?.takeIf { it.isNotEmpty() }
+            )
+
+            validatePublicApiBaseUrlForStartup(smtp, appLinks)
+
             return AppConfig(
                 database = DatabaseConfig(
                     url = config.propertyOrNull("database.url")?.getString()
@@ -71,27 +103,8 @@ data class AppConfig(
                         }.getOrNull()
                         ?: true
                 ),
-                smtp = SmtpConfig(
-                    enabled = config.propertyOrNull("smtp.enabled")?.getString()?.toBoolean() ?: false,
-                    host = config.propertyOrNull("smtp.host")?.getString()?.trim().orEmpty(),
-                    port = config.propertyOrNull("smtp.port")?.getString()?.toIntOrNull() ?: 587,
-                    username = config.propertyOrNull("smtp.username")?.getString()?.trim().orEmpty(),
-                    password = config.propertyOrNull("smtp.password")?.getString().orEmpty(),
-                    fromAddress = config.propertyOrNull("smtp.fromAddress")?.getString()?.trim().orEmpty(),
-                    tlsMode = when (
-                        config.propertyOrNull("smtp.tlsMode")?.getString()?.trim()?.lowercase() ?: "starttls"
-                    ) {
-                        "ssl", "smtps" -> SmtpTlsMode.SSL
-                        else -> SmtpTlsMode.STARTTLS
-                    }
-                ),
-                appLinks = AppLinksConfig(
-                    publicApiBaseUrl = config.propertyOrNull("app.publicApiBaseUrl")?.getString()?.trim().orEmpty(),
-                    emailVerifySuccessRedirectUrl = config.propertyOrNull("app.emailVerifySuccessRedirectUrl")
-                        ?.getString()?.trim()?.takeIf { it.isNotEmpty() },
-                    emailVerifyFailureRedirectUrl = config.propertyOrNull("app.emailVerifyFailureRedirectUrl")
-                        ?.getString()?.trim()?.takeIf { it.isNotEmpty() }
-                )
+                smtp = smtp,
+                appLinks = appLinks
             )
         }
     }
@@ -155,3 +168,64 @@ data class SmtpConfig(
     val fromAddress: String = "",
     val tlsMode: SmtpTlsMode = SmtpTlsMode.STARTTLS
 )
+
+internal fun normalizePublicApiBaseUrl(baseUrl: String, deploymentPort: Int): String {
+    val trimmed = baseUrl.trim().removeSuffix("/")
+    if (trimmed.isEmpty()) return ""
+    val uri = try {
+        URI(trimmed)
+    } catch (_: Exception) {
+        return baseUrl.trim()
+    }
+    if (!uri.scheme.equals("http", ignoreCase = true)) return trimmed
+    if (uri.port > 0) return trimmed
+    val host = uri.host ?: return trimmed
+    if (!shouldInferHttpPortForHost(host)) return trimmed
+    if (deploymentPort == 80) return trimmed
+    return buildString {
+        append("http://")
+        uri.userInfo?.let { append(it).append('@') }
+        append(host).append(':').append(deploymentPort)
+        append(uri.rawPath.orEmpty())
+        uri.rawQuery?.let { append('?').append(it) }
+        uri.rawFragment?.let { append('#').append(it) }
+    }.removeSuffix("/")
+}
+
+private fun shouldInferHttpPortForHost(host: String): Boolean {
+    if (host.equals("localhost", ignoreCase = true)) return true
+    if (host == "127.0.0.1" || host == "::1") return true
+    return host.matches(Regex("^\\d{1,3}(\\.\\d{1,3}){3}$"))
+}
+
+internal fun validatePublicApiBaseUrlForStartup(smtp: SmtpConfig, appLinks: AppLinksConfig) {
+    val base = appLinks.publicApiBaseUrl.trim()
+    if (smtp.enabled && base.isEmpty()) {
+        throw IllegalStateException(
+            "SMTP is enabled but PUBLIC_API_BASE_URL is empty. Set the full public API URL " +
+                "(scheme, host, and port if not 80/443), e.g. http://203.0.113.1:8080 or https://api.example.com"
+        )
+    }
+    if (base.isEmpty()) return
+    val uri = try {
+        URI(base)
+    } catch (e: URISyntaxException) {
+        throw IllegalStateException("PUBLIC_API_BASE_URL is not a valid URL: ${e.reason ?: e.message}", e)
+    }
+    val scheme = uri.scheme?.lowercase()
+    if (scheme != "http" && scheme != "https") {
+        throw IllegalStateException(
+            "PUBLIC_API_BASE_URL must use http or https scheme, got: ${uri.scheme ?: "(missing)"}"
+        )
+    }
+    if (uri.host.isNullOrBlank()) {
+        throw IllegalStateException("PUBLIC_API_BASE_URL must include a host (e.g. https://api.example.com)")
+    }
+    if (smtp.enabled && scheme == "http" && uri.port < 0 && !shouldInferHttpPortForHost(uri.host)) {
+        throw IllegalStateException(
+            "PUBLIC_API_BASE_URL uses http:// without an explicit port for hostname \"${uri.host}\". " +
+                "Browsers default to port 80. If the API is not on 80, set the port explicitly " +
+                "(e.g. http://${uri.host}:8080) or use https behind a reverse proxy."
+        )
+    }
+}
