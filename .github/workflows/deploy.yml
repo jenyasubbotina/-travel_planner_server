@@ -40,6 +40,8 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: docker-build-push
+    env:
+      IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/travel-planner-server
     steps:
       - name: Deploy on VPS over SSH
         uses: appleboy/ssh-action@v1.2.0
@@ -51,8 +53,13 @@ jobs:
           script: |
             set -e
             cd ${{ secrets.VPS_APP_DIR }}
-            export APP_IMAGE=${{ env.IMAGE_NAME }}:latest
+            export APP_IMAGE="${{ env.IMAGE_NAME }}:latest"
             export COMPOSE_PROJECT_NAME=travel-planner
+
+            if [ -z "$APP_IMAGE" ] || [ "$APP_IMAGE" = ":latest" ]; then
+              echo "APP_IMAGE is empty — set GitHub secret DOCKERHUB_USERNAME"
+              exit 1
+            fi
 
             # Sync deployment repo on VPS to latest main branch.
             if [ -d .git ]; then
@@ -73,12 +80,13 @@ jobs:
 
             chmod 600 .env travelplanner-firebase.json
 
+            # sudo по умолчанию сбрасывает env — без -E docker compose не видит APP_IMAGE (${APP_IMAGE:?} падает).
             if sudo -n docker compose version >/dev/null 2>&1; then
-              DC="sudo -n docker compose"
+              DC="sudo -n -E docker compose"
             elif docker compose version >/dev/null 2>&1; then
               DC="docker compose"
             elif sudo -n docker-compose version >/dev/null 2>&1; then
-              DC="sudo -n docker-compose"
+              DC="sudo -n -E docker-compose"
             elif command -v docker-compose >/dev/null 2>&1; then
               DC="docker-compose"
             else
