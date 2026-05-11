@@ -31,6 +31,8 @@ jobs:
         with:
           context: .
           push: true
+          build-args: |
+            CI_GIT_SHA=${{ github.sha }}
           tags: |
             ${{ env.IMAGE_NAME }}:latest
             ${{ env.IMAGE_NAME }}:${{ github.sha }}

@@ -6,7 +6,9 @@ COPY gradlew ./
 RUN chmod +x gradlew
 RUN ./gradlew dependencies --no-daemon || true
 COPY src ./src
-RUN ./gradlew buildFatJar --no-daemon
+# Меняется на каждый коммит в CI — иначе BuildKit/GHA cache может отдать старый слой с JAR без актуального Kotlin.
+ARG CI_GIT_SHA=local
+RUN echo "CI_GIT_SHA=${CI_GIT_SHA}" && ./gradlew buildFatJar --no-daemon
 
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
