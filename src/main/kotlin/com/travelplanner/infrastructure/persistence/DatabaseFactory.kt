@@ -32,6 +32,7 @@ object DatabaseFactory {
             .locations("classpath:com/travelplanner/db/migration")
             .baselineOnMigrate(true)
             .outOfOrder(true)
+            .validateMigrationNaming(true)
             .load()
 
         val infoBefore = flyway.info()
