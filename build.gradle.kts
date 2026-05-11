@@ -80,7 +80,6 @@ dependencies {
     implementation(libs.postgresql)
     implementation(libs.hikari)
     implementation(libs.flyway.core)
-    implementation(libs.flyway.postgresql)
 
     // Auth
     implementation(libs.jbcrypt)
