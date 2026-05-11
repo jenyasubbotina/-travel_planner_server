@@ -92,7 +92,18 @@ data class InvitationResponse(
     val email: String,
     val role: String,
     val status: String,
-    val createdAt: String
+    val createdAt: String,
+    val trip: TripSnapshot? = null,
+)
+
+@Serializable
+data class TripSnapshot(
+    val title: String,
+    val destination: String,
+    val startDate: String? = null,
+    val endDate: String? = null,
+    val imageUrl: String? = null,
+    val baseCurrency: String,
 )
 
 // ──────────────────────────────────────────────

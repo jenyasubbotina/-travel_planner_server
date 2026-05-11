@@ -20,11 +20,8 @@ class ListJoinRequestsUseCase(
     data class Pending(val userId: UUID, val user: User)
 
     suspend fun execute(input: Input): List<Pending> = transactionRunner.runInTransaction {
-        val participant = participantRepository.findByTripAndUser(input.tripId, input.userId)
+        participantRepository.findByTripAndUser(input.tripId, input.userId)
             ?: throw DomainException.AccessDenied("User is not a participant of this trip")
-        if (!participant.role.canManageParticipants()) {
-            throw DomainException.InsufficientRole("OWNER")
-        }
 
         val pending = joinRequestRepository.findPendingByTrip(input.tripId)
         pending.mapNotNull { req ->

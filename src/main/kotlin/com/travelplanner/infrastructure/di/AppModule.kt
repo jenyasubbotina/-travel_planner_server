@@ -15,7 +15,9 @@ import com.travelplanner.application.usecase.trip.ListUserTripsUseCase
 import com.travelplanner.application.usecase.trip.UpdateTripUseCase
 import com.travelplanner.application.usecase.participant.AcceptInvitationUseCase
 import com.travelplanner.application.usecase.participant.ChangeRoleUseCase
+import com.travelplanner.application.usecase.participant.DeclineInvitationUseCase
 import com.travelplanner.application.usecase.participant.InviteParticipantUseCase
+import com.travelplanner.application.usecase.participant.ListTripPendingInvitationsUseCase
 import com.travelplanner.application.usecase.participant.RemoveParticipantUseCase
 import com.travelplanner.application.usecase.itinerary.AddItineraryPointCommentUseCase
 import com.travelplanner.application.usecase.itinerary.AddItineraryPointLinkUseCase
@@ -182,6 +184,8 @@ val appModule = module {
     // ──────────────────────────────────────────────
     single { InviteParticipantUseCase(get(), get(), get(), get(), get()) }
     single { AcceptInvitationUseCase(get(), get(), get(), get()) }
+    single { DeclineInvitationUseCase(get(), get(), get(), get()) }
+    single { ListTripPendingInvitationsUseCase(get(), get()) }
     single { RemoveParticipantUseCase(get(), get(), get(), get(), get()) }
     single { ChangeRoleUseCase(get(), get(), get(), get(), get()) }
 
