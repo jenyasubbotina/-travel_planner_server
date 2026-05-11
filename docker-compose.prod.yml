@@ -3,6 +3,7 @@
 services:
   app:
     image: ${APP_IMAGE:?Set APP_IMAGE}
+    restart: unless-stopped
     ports:
       - "8080:8080"
     depends_on:
@@ -78,3 +79,7 @@ services:
 volumes:
   pgdata:
   miniodata:
+
+networks:
+  default:
+    name: travel-planner_default

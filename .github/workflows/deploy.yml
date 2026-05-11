@@ -53,13 +53,7 @@ jobs:
           script: |
             set -e
             cd ${{ secrets.VPS_APP_DIR }}
-            export APP_IMAGE="${{ env.IMAGE_NAME }}:latest"
             export COMPOSE_PROJECT_NAME=travel-planner
-
-            if [ -z "$APP_IMAGE" ] || [ "$APP_IMAGE" = ":latest" ]; then
-              echo "APP_IMAGE is empty — set GitHub secret DOCKERHUB_USERNAME"
-              exit 1
-            fi
 
             # Sync deployment repo on VPS to latest main branch.
             if [ -d .git ]; then
@@ -80,11 +74,20 @@ jobs:
 
             chmod 600 .env travelplanner-firebase.json
 
+            export APP_IMAGE="${{ env.IMAGE_NAME }}:${{ github.sha }}"
+            if [ -z "$APP_IMAGE" ] || [ "$APP_IMAGE" = "/travel-planner-server:${{ github.sha }}" ]; then
+              echo "APP_IMAGE is invalid — set GitHub secret DOCKERHUB_USERNAME"
+              exit 1
+            fi
+
             # sudo по умолчанию сбрасывает env — без -E docker compose не видит APP_IMAGE (${APP_IMAGE:?} падает).
+            COMPOSE_V2=0
             if sudo -n docker compose version >/dev/null 2>&1; then
               DC="sudo -n -E docker compose"
+              COMPOSE_V2=1
             elif docker compose version >/dev/null 2>&1; then
               DC="docker compose"
+              COMPOSE_V2=1
             elif sudo -n docker-compose version >/dev/null 2>&1; then
               DC="sudo -n -E docker-compose"
             elif command -v docker-compose >/dev/null 2>&1; then
@@ -99,4 +102,10 @@ jobs:
             sudo -n docker rm -f travel-planner_app_1 >/dev/null 2>&1 || docker rm -f travel-planner_app_1 >/dev/null 2>&1 || true
             $DC -f docker-compose.prod.yml pull app
             $DC -f docker-compose.prod.yml up -d --no-recreate postgres redis minio || true
-            $DC -f docker-compose.prod.yml up -d --no-deps app
+            # v2: без --no-deps — учитывается depends_on + healthcheck (меньше гонок DNS postgres).
+            # v1: --no-deps — избегаем массового recreate зависимостей.
+            if [ "$COMPOSE_V2" -eq 1 ]; then
+              $DC -f docker-compose.prod.yml up -d app
+            else
+              $DC -f docker-compose.prod.yml up -d --no-deps app
+            fi
