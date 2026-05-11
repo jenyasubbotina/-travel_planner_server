@@ -35,13 +35,13 @@ object DatabaseFactory {
             .baselineOnMigrate(true)
             .outOfOrder(true)
 
-        // Одноразовый recovery: схема уже как после V17, а в flyway_schema_history только «1» / битые строки.
-        // Только baselineVersion() недостаточно: при непустой истории Flyway не делает baseline заново и снова гоняет V2+.
-        // Чистим историю — при непустой схеме сработает baselineOnMigrate + baselineVersion (пропуск до N, затем V18+).
+        // Одноразовый recovery: схема уже как после V17, история Flyway битая/отстаёт.
+        // TRUNCATE оставляет пустую flyway_schema_history — baselineOnMigrate НЕ срабатывает (нужна отсутствующая таблица),
+        // Flyway идёт с V1 → «already exists». Решение: DROP таблицы истории + явный baseline() на нужной версии.
         val recoveryBaseline = System.getenv("FLYWAY_RECOVERY_BASELINE_VERSION")?.trim().orEmpty()
         if (recoveryBaseline.isNotEmpty()) {
             log.warn(
-                "Flyway RECOVERY: baselineVersion={}, очистка flyway_schema_history — после успешного migrate удалите FLYWAY_RECOVERY_BASELINE_VERSION",
+                "Flyway RECOVERY: baselineVersion={}, DROP истории + baseline() — после успешного migrate удалите FLYWAY_RECOVERY_BASELINE_VERSION",
                 recoveryBaseline
             )
             cfg.baselineVersion(MigrationVersion.fromVersion(recoveryBaseline))
@@ -50,7 +50,9 @@ object DatabaseFactory {
         val flyway = cfg.load()
 
         if (recoveryBaseline.isNotEmpty()) {
-            clearFlywayHistoryTable(dataSource)
+            dropFlywaySchemaHistoryTable(dataSource)
+            flyway.baseline()
+            log.warn("Flyway RECOVERY: baseline() зафиксирован на версии {}, далее migrate()", recoveryBaseline)
         }
 
         val infoBefore = flyway.info()
@@ -74,20 +76,18 @@ object DatabaseFactory {
         Database.connect(dataSource)
     }
 
-    /** Только для FLYWAY_RECOVERY_BASELINE_VERSION: пустая история + непустая схема → baseline на нужной версии. */
-    private fun clearFlywayHistoryTable(dataSource: HikariDataSource) {
+    /** Только для recovery: полное удаление таблицы истории, иначе Flyway не делает baseline и снова гоняет V1+. */
+    private fun dropFlywaySchemaHistoryTable(dataSource: HikariDataSource) {
         try {
             dataSource.connection.use { conn ->
                 conn.autoCommit = true
                 conn.createStatement().use { st ->
-                    st.execute("TRUNCATE TABLE flyway_schema_history")
+                    st.execute("DROP TABLE IF EXISTS flyway_schema_history")
                 }
             }
-            log.warn("Flyway RECOVERY: таблица flyway_schema_history очищена")
+            log.warn("Flyway RECOVERY: flyway_schema_history удалена")
         } catch (e: SQLException) {
-            val undefinedTable = e.sqlState == "42P01"
-            if (!undefinedTable) throw e
-            log.info("Flyway RECOVERY: flyway_schema_history ещё нет — пропуск TRUNCATE")
+            if (e.sqlState != "42P01") throw e
         }
     }
 
