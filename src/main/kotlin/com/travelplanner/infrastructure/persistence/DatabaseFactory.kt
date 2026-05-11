@@ -7,8 +7,11 @@ import kotlinx.coroutines.Dispatchers
 import org.flywaydb.core.Flyway
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
+import org.slf4j.LoggerFactory
 
 object DatabaseFactory {
+
+    private val log = LoggerFactory.getLogger(DatabaseFactory::class.java)
 
     fun init(config: DatabaseConfig) {
         val hikariConfig = HikariConfig().apply {
@@ -30,8 +33,24 @@ object DatabaseFactory {
             .baselineOnMigrate(true)
             .outOfOrder(true)
             .load()
+
+        val infoBefore = flyway.info()
+        log.info(
+            "Flyway: locations=classpath:com/travelplanner/db/migration, " +
+                "currentVersion={}, pendingMigrations={}",
+            infoBefore.current()?.version?.version,
+            infoBefore.pending().size
+        )
+
         flyway.repair()
         flyway.migrate()
+
+        val infoAfter = flyway.info()
+        log.info(
+            "Flyway: after migrate currentVersion={}, allApplied={}",
+            infoAfter.current()?.version?.version,
+            infoAfter.pending().isEmpty()
+        )
 
         Database.connect(dataSource)
     }
